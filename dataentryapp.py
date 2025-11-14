@@ -81,6 +81,14 @@ def get_records():
     return df
 
 
+def delete_record(record_id: int):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM routes WHERE id = ?", (record_id,))
+    conn.commit()
+    conn.close()
+
+
 # --- APP ---
 
 init_db()
@@ -148,12 +156,12 @@ with st.form("route_form", clear_on_submit=True):
             st.success("Η εγγραφή αποθηκεύτηκε με επιτυχία ✅")
 
 
-# ΠΡΟΒΟΛΗ / ΦΙΛΤΡΑ / EXPORT
+# ΠΡΟΒΟΛΗ / ΦΙΛΤΡΑ / EXPORT / DELETE
 st.subheader("📄 Τελευταίες εγγραφές & φίλτρα")
 
 df = get_records()
 if df is not None and not df.empty:
-    # Μετατροπή dt σε datetime
+    # Μετατροπή dt σε datetime.date
     df["dt"] = pd.to_datetime(df["dt"]).dt.date
 
     # Default τιμές για range ημερομηνίας
@@ -191,8 +199,7 @@ if df is not None and not df.empty:
     if driver_filter:
         filtered_df = filtered_df[filtered_df["driver"].isin(driver_filter)]
 
-    # date_input μπορεί να γυρίσει είτε μία ημερομηνία είτε tuple
-    if isinstance(date_range, tuple) or isinstance(date_range, list):
+    if isinstance(date_range, (tuple, list)):
         start_date, end_date = date_range
     else:
         start_date = end_date = date_range
@@ -205,7 +212,7 @@ if df is not None and not df.empty:
     st.markdown("### 📊 Αποτελέσματα")
     st.dataframe(filtered_df, use_container_width=True)
 
-    # --- Export σε Excel (με τα φιλτραρισμένα δεδομένα) ---
+    # --- Export σε Excel (φιλτραρισμένα δεδομένα) ---
     if not filtered_df.empty:
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -218,5 +225,21 @@ if df is not None and not df.empty:
             file_name="routes_filtered.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+
+    # --- Διαγραφή εγγραφών ---
+    st.markdown("### 🗑️ Διαγραφή εγγραφών (με βάση τα φιλτραρισμένα)")
+
+    if not filtered_df.empty:
+        for _, row in filtered_df.iterrows():
+            colA, colB = st.columns([6, 1])
+            with colA:
+                st.write(
+                    f"ID: {row['id']} – {row['plate']} – {row['dt']} – {row['driver']}"
+                )
+            with colB:
+                if st.button("🗑️", key=f"del_{row['id']}"):
+                    delete_record(int(row["id"]))
+                    st.success(f"Η εγγραφή με ID {row['id']} διαγράφηκε.")
+                    st.rerun()
 else:
     st.info("Δεν υπάρχουν ακόμη εγγραφές.")
