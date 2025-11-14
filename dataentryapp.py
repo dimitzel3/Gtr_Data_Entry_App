@@ -11,7 +11,7 @@ PLATE_OPTIONS = [
     "ΙΕΜ 1356", "IAE 4351", "ΕΚΒ 3941", "ΒΚΤ 9409"
 ]
 
-DRIVER_OPTIONS = ["Βακαλφώτης", "Αγγίδου"]
+DRIVER_OPTIONS = ["Test1", "Test2"]
 
 
 def init_db():
@@ -141,3 +141,4 @@ if df is not None and not df.empty:
     st.dataframe(df, use_container_width=True)
 else:
     st.info("Δεν υπάρχουν ακόμη εγγραφές.")
+
