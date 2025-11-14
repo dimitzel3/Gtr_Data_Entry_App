@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 from datetime import date
 import pandas as pd
+import io  # για Excel export
 
 DB_NAME = "data.db"
 
@@ -11,7 +12,7 @@ PLATE_OPTIONS = [
     "ΙΕΜ 1356", "IAE 4351", "ΕΚΒ 3941", "ΒΚΤ 9409"
 ]
 
-DRIVER_OPTIONS = ["Test1", "Test2"]
+DRIVER_OPTIONS = ["Βακαλφώτης", "Αγγίδου"]
 
 
 def init_db():
@@ -58,8 +59,22 @@ def insert_record(
 def get_records():
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql_query(
-        "SELECT id, plate, dt, route, start_km, end_km, total_km, kilos, litres, consumption, driver "
-        "FROM routes ORDER BY id DESC",
+        """
+        SELECT
+            id,
+            plate,
+            dt,
+            route,
+            start_km,
+            end_km,
+            total_km,
+            kilos,
+            litres,
+            consumption,
+            driver
+        FROM routes
+        ORDER BY id DESC
+        """,
         conn,
     )
     conn.close()
@@ -73,6 +88,7 @@ st.set_page_config(page_title="Δρομολόγια Οχημάτων", layout="c
 
 st.title("🚚 Καταχώρηση Δρομολογίων")
 
+# ΦΟΡΜΑ ΚΑΤΑΧΩΡΗΣΗΣ
 with st.form("route_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
 
@@ -90,7 +106,6 @@ with st.form("route_form", clear_on_submit=True):
         end_km = st.number_input("End Km", min_value=0.0, step=1.0, format="%.0f")
 
     # Υπολογισμός Total Km
-    total_km = None
     if end_km >= start_km:
         total_km = end_km - start_km
     else:
@@ -115,7 +130,6 @@ with st.form("route_form", clear_on_submit=True):
     submitted = st.form_submit_button("✅ Αποθήκευση")
 
     if submitted:
-        # Μικροί έλεγχοι
         if end_km < start_km:
             st.error("Το End Km δεν μπορεί να είναι μικρότερο από το Start Km.")
         else:
@@ -134,11 +148,75 @@ with st.form("route_form", clear_on_submit=True):
             st.success("Η εγγραφή αποθηκεύτηκε με επιτυχία ✅")
 
 
-st.subheader("📄 Τελευταίες εγγραφές")
+# ΠΡΟΒΟΛΗ / ΦΙΛΤΡΑ / EXPORT
+st.subheader("📄 Τελευταίες εγγραφές & φίλτρα")
 
 df = get_records()
 if df is not None and not df.empty:
-    st.dataframe(df, use_container_width=True)
+    # Μετατροπή dt σε datetime
+    df["dt"] = pd.to_datetime(df["dt"]).dt.date
+
+    # Default τιμές για range ημερομηνίας
+    min_date = df["dt"].min()
+    max_date = df["dt"].max()
+
+    st.markdown("### 🔍 Φίλτρα")
+
+    colf1, colf2, colf3 = st.columns(3)
+
+    with colf1:
+        plate_filter = st.multiselect(
+            "Φίλτρο πινακίδας",
+            options=sorted(df["plate"].unique())
+        )
+
+    with colf2:
+        driver_filter = st.multiselect(
+            "Φίλτρο οδηγού",
+            options=sorted(df["driver"].dropna().unique())
+        )
+
+    with colf3:
+        date_range = st.date_input(
+            "Ημερομηνία από / έως",
+            value=(min_date, max_date)
+        )
+
+    # Εφαρμογή φίλτρων
+    filtered_df = df.copy()
+
+    if plate_filter:
+        filtered_df = filtered_df[filtered_df["plate"].isin(plate_filter)]
+
+    if driver_filter:
+        filtered_df = filtered_df[filtered_df["driver"].isin(driver_filter)]
+
+    # date_input μπορεί να γυρίσει είτε μία ημερομηνία είτε tuple
+    if isinstance(date_range, tuple) or isinstance(date_range, list):
+        start_date, end_date = date_range
+    else:
+        start_date = end_date = date_range
+
+    if start_date and end_date:
+        filtered_df = filtered_df[
+            (filtered_df["dt"] >= start_date) & (filtered_df["dt"] <= end_date)
+        ]
+
+    st.markdown("### 📊 Αποτελέσματα")
+    st.dataframe(filtered_df, use_container_width=True)
+
+    # --- Export σε Excel (με τα φιλτραρισμένα δεδομένα) ---
+    if not filtered_df.empty:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            filtered_df.to_excel(writer, index=False, sheet_name="Routes")
+        output.seek(0)
+
+        st.download_button(
+            label="📥 Λήψη σε Excel",
+            data=output,
+            file_name="routes_filtered.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
 else:
     st.info("Δεν υπάρχουν ακόμη εγγραφές.")
-
