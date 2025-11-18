@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import date
 import io  # για Excel export
-from supabase import create_client, Client
+from supabase import create_client
 
 PLATE_OPTIONS = [
     "ΕΚΒ 4058", "ΙΑΕ 6034", "ΝΧΥ 3413", "ΙΕΜ 1556", "ΖΝΒ 7991",
@@ -16,7 +16,7 @@ DRIVER_OPTIONS = ["Βακαλφώτης", "Αγγίδου"]
 # ---------- SUPABASE CLIENT ----------
 
 @st.cache_resource
-def get_supabase_client() -> Client:
+def get_supabase_client():
     url = st.secrets["supabase"]["url"]
     key = st.secrets["supabase"]["anon_key"]
     return create_client(url, key)
@@ -32,7 +32,7 @@ def insert_record(
 ):
     data = {
         "plate": plate,
-        "dt": str(dt),  # ISO date string
+        "dt": str(dt),  # ISO date string (yyyy-mm-dd)
         "route": route if route else None,
         "start_km": float(start_km),
         "end_km": float(end_km),
@@ -43,19 +43,17 @@ def insert_record(
         "driver": driver,
     }
 
-    res = supabase.table("routes").insert(data).execute()
-    if res.error:
-        raise RuntimeError(res.error.message)
+    # Αν υπάρξει λάθος, ο client θα πετάξει exception
+    supabase.table("routes").insert(data).execute()
 
 
 def get_records() -> pd.DataFrame:
-    res = supabase.table("routes") \
-        .select("*") \
-        .order("id", desc=True) \
+    res = (
+        supabase.table("routes")
+        .select("*")
+        .order("id", desc=True)
         .execute()
-
-    if res.error:
-        raise RuntimeError(res.error.message)
+    )
 
     data = res.data or []
     if not data:
@@ -66,12 +64,7 @@ def get_records() -> pd.DataFrame:
 
 
 def delete_record(record_id: int):
-    res = supabase.table("routes") \
-        .delete() \
-        .eq("id", record_id) \
-        .execute()
-    if res.error:
-        raise RuntimeError(res.error.message)
+    supabase.table("routes").delete().eq("id", record_id).execute()
 
 
 # ---------- STREAMLIT APP ----------
@@ -149,12 +142,12 @@ st.subheader("📄 Τελευταίες εγγραφές & φίλτρα")
 try:
     df = get_records()
 except Exception as e:
-    st.error("Πρόβλημα σύνδεσης με Supabase. Έλεγξε URL / anon key.")
+    st.error("Πρόβλημα σύνδεσης με Supabase. Έλεγξε URL / anon key & table 'routes'.")
     st.exception(e)
     st.stop()
 
 if df is not None and not df.empty:
-    # Μετατροπή dt σε date
+    # Μετατροπή dt σε date, αν υπάρχει
     if "dt" in df.columns:
         df["dt"] = pd.to_datetime(df["dt"]).dt.date
 
