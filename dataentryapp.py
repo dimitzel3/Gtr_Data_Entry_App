@@ -1,10 +1,8 @@
 import streamlit as st
-import sqlite3
-from datetime import date
 import pandas as pd
+from datetime import date
 import io  # για Excel export
-
-DB_NAME = "data.db"
+from supabase import create_client, Client
 
 PLATE_OPTIONS = [
     "ΕΚΒ 4058", "ΙΑΕ 6034", "ΝΧΥ 3413", "ΙΕΜ 1556", "ΖΝΒ 7991",
@@ -12,89 +10,74 @@ PLATE_OPTIONS = [
     "ΙΕΜ 1356", "IAE 4351", "ΕΚΒ 3941", "ΒΚΤ 9409"
 ]
 
-DRIVER_OPTIONS = ["ΒΑΚΑΛΦΩΤΗΣ ΒΑΓΓΕΛΗΣ", "ΒΑΚΑΛΦΩΤΗΣ ΓΡΗΓΟΡΗΣ","ΚΟΛΤΣΙΝΑΚΟΣ ΒΑΓΓΕΛΗΣ","ΙΜΠΑΣ ΙΟΡΔΑΝΗΣ"]
+DRIVER_OPTIONS = ["Βακαλφώτης", "Αγγίδου"]
 
 
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS routes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            plate TEXT NOT NULL,
-            dt TEXT NOT NULL,
-            route TEXT,
-            start_km REAL,
-            end_km REAL,
-            total_km REAL,
-            kilos REAL,
-            litres REAL,
-            consumption TEXT,
-            driver TEXT
-        )
-        """
-    )
-    conn.commit()
-    conn.close()
+# ---------- SUPABASE CLIENT ----------
 
+@st.cache_resource
+def get_supabase_client() -> Client:
+    url = st.secrets["supabase"]["url"]
+    key = st.secrets["supabase"]["anon_key"]
+    return create_client(url, key)
+
+
+supabase = get_supabase_client()
+
+
+# ---------- CRUD ΣΥΝΑΡΤΗΣΕΙΣ ----------
 
 def insert_record(
     plate, dt, route, start_km, end_km, total_km, kilos, litres, consumption, driver
 ):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute(
-        """
-        INSERT INTO routes
-        (plate, dt, route, start_km, end_km, total_km, kilos, litres, consumption, driver)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (plate, dt, route, start_km, end_km, total_km, kilos, litres, consumption, driver),
-    )
-    conn.commit()
-    conn.close()
+    data = {
+        "plate": plate,
+        "dt": str(dt),  # ISO date string
+        "route": route if route else None,
+        "start_km": float(start_km),
+        "end_km": float(end_km),
+        "total_km": float(total_km),
+        "kilos": float(kilos),
+        "litres": float(litres),
+        "consumption": consumption if consumption else None,
+        "driver": driver,
+    }
+
+    res = supabase.table("routes").insert(data).execute()
+    if res.error:
+        raise RuntimeError(res.error.message)
 
 
-def get_records():
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query(
-        """
-        SELECT
-            id,
-            plate,
-            dt,
-            route,
-            start_km,
-            end_km,
-            total_km,
-            kilos,
-            litres,
-            consumption,
-            driver
-        FROM routes
-        ORDER BY id DESC
-        """,
-        conn,
-    )
-    conn.close()
+def get_records() -> pd.DataFrame:
+    res = supabase.table("routes") \
+        .select("*") \
+        .order("id", desc=True) \
+        .execute()
+
+    if res.error:
+        raise RuntimeError(res.error.message)
+
+    data = res.data or []
+    if not data:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(data)
     return df
 
 
 def delete_record(record_id: int):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("DELETE FROM routes WHERE id = ?", (record_id,))
-    conn.commit()
-    conn.close()
+    res = supabase.table("routes") \
+        .delete() \
+        .eq("id", record_id) \
+        .execute()
+    if res.error:
+        raise RuntimeError(res.error.message)
 
 
-# --- APP ---
+# ---------- STREAMLIT APP ----------
 
-init_db()
 st.set_page_config(page_title="Δρομολόγια Οχημάτων", layout="centered")
-
-st.title("🚚 Καταχώρηση Δρομολογίων")
+st.title("🚚 Καταχώρηση Δρομολογίων (Supabase Data API)")
 
 # ΦΟΡΜΑ ΚΑΤΑΧΩΡΗΣΗΣ
 with st.form("route_form", clear_on_submit=True):
@@ -141,30 +124,40 @@ with st.form("route_form", clear_on_submit=True):
         if end_km < start_km:
             st.error("Το End Km δεν μπορεί να είναι μικρότερο από το Start Km.")
         else:
-            insert_record(
-                plate=plate,
-                dt=str(dt),
-                route=route,
-                start_km=float(start_km),
-                end_km=float(end_km),
-                total_km=float(total_km),
-                kilos=float(kilos),
-                litres=float(litres),
-                consumption=consumption,
-                driver=driver,
-            )
-            st.success("Η εγγραφή αποθηκεύτηκε με επιτυχία ✅")
+            try:
+                insert_record(
+                    plate=plate,
+                    dt=dt,
+                    route=route,
+                    start_km=start_km,
+                    end_km=end_km,
+                    total_km=total_km,
+                    kilos=kilos,
+                    litres=litres,
+                    consumption=consumption,
+                    driver=driver,
+                )
+                st.success("Η εγγραφή αποθηκεύτηκε με επιτυχία ✅")
+            except Exception as e:
+                st.error("Σφάλμα κατά την αποθήκευση στην Supabase.")
+                st.exception(e)
 
 
 # ΠΡΟΒΟΛΗ / ΦΙΛΤΡΑ / EXPORT / DELETE
 st.subheader("📄 Τελευταίες εγγραφές & φίλτρα")
 
-df = get_records()
-if df is not None and not df.empty:
-    # Μετατροπή dt σε datetime.date
-    df["dt"] = pd.to_datetime(df["dt"]).dt.date
+try:
+    df = get_records()
+except Exception as e:
+    st.error("Πρόβλημα σύνδεσης με Supabase. Έλεγξε URL / anon key.")
+    st.exception(e)
+    st.stop()
 
-    # Default τιμές για range ημερομηνίας
+if df is not None and not df.empty:
+    # Μετατροπή dt σε date
+    if "dt" in df.columns:
+        df["dt"] = pd.to_datetime(df["dt"]).dt.date
+
     min_date = df["dt"].min()
     max_date = df["dt"].max()
 
@@ -175,7 +168,7 @@ if df is not None and not df.empty:
     with colf1:
         plate_filter = st.multiselect(
             "Φίλτρο πινακίδας",
-            options=sorted(df["plate"].unique())
+            options=sorted(df["plate"].dropna().unique())
         )
 
     with colf2:
@@ -190,7 +183,6 @@ if df is not None and not df.empty:
             value=(min_date, max_date)
         )
 
-    # Εφαρμογή φίλτρων
     filtered_df = df.copy()
 
     if plate_filter:
@@ -212,7 +204,7 @@ if df is not None and not df.empty:
     st.markdown("### 📊 Αποτελέσματα")
     st.dataframe(filtered_df, use_container_width=True)
 
-    # --- Export σε Excel (φιλτραρισμένα δεδομένα) ---
+    # Export σε Excel
     if not filtered_df.empty:
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -226,7 +218,7 @@ if df is not None and not df.empty:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
-    # --- Διαγραφή εγγραφών ---
+    # Διαγραφή εγγραφών
     st.markdown("### 🗑️ Διαγραφή εγγραφών (με βάση τα φιλτραρισμένα)")
 
     if not filtered_df.empty:
@@ -238,9 +230,12 @@ if df is not None and not df.empty:
                 )
             with colB:
                 if st.button("🗑️", key=f"del_{row['id']}"):
-                    delete_record(int(row["id"]))
-                    st.success(f"Η εγγραφή με ID {row['id']} διαγράφηκε.")
-                    st.rerun()
+                    try:
+                        delete_record(int(row["id"]))
+                        st.success(f"Η εγγραφή με ID {row['id']} διαγράφηκε.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error("Σφάλμα κατά τη διαγραφή από Supabase.")
+                        st.exception(e)
 else:
     st.info("Δεν υπάρχουν ακόμη εγγραφές.")
-
