@@ -4,12 +4,22 @@ from datetime import date, datetime
 import io  # για Excel export
 from supabase import create_client
 
-PLATE_OPTIONS = [
+# Δρομολόγια (ενδεικτικές επιλογές – άλλαξέ τες όπως θες)
+ROUTE_OPTIONS = [
+    "Πρωινή διανομή",
+    "Απογευματινή διανομή",
+    "Επαρχία",
+    "Επιστροφή αποθήκης",
+]
+
+# Οχήματα (όπως πριν)
+VEHICLE_OPTIONS = [
     "ΕΚΒ 4058", "ΙΑΕ 6034", "ΝΧΥ 3413", "ΙΕΜ 1556", "ΖΝΒ 7991",
     "ΖΝΒ 7971", "XZH1006", "ΝΧΥ 3547", "ΙΤΜ 3656", "ΝΧΥ 3546",
     "ΙΕΜ 1356", "IAE 4351", "ΕΚΒ 3941", "ΒΚΤ 9409"
 ]
 
+# Οδηγοί
 DRIVER_OPTIONS = ["Βακαλφώτης", "Αγγίδου"]
 
 
@@ -39,20 +49,23 @@ def to_float_or_none(x):
 # ---------- CRUD ΣΥΝΑΡΤΗΣΕΙΣ ----------
 
 def insert_record(
-    plate, dt, route, start_km, end_km, total_km, kilos, litres, consumption, driver
+    route, vehicle, start_km, end_km, total_km, driver, started_at
 ):
+    """
+    Δημιουργεί νέο δρομολόγιο (ανοιχτό).
+    started_at = datetime (ημερομηνία & ώρα έναρξης)
+    """
     data = {
-        "plate": plate,
-        "dt": str(dt),  # ISO date string (yyyy-mm-dd)
         "route": route if route else None,
+        "plate": vehicle,
         "start_km": to_float_or_none(start_km),
-        "end_km": to_float_or_none(end_km),
-        "total_km": to_float_or_none(total_km),
-        "kilos": to_float_or_none(kilos),
-        "litres": to_float_or_none(litres),
-        "consumption": consumption if consumption else None,
+        "end_km": to_float_or_none(end_km),           # συνήθως None στην αρχή
+        "total_km": to_float_or_none(total_km),       # συνήθως None στην αρχή
         "driver": driver,
+        "dt": started_at.date().isoformat(),          # για φίλτρα ημερομηνίας
+        "started_at": started_at.isoformat(),         # full datetime έναρξης
         "is_closed": False,
+        # closed_at θα μπει όταν κλείσουμε το δρομολόγιο
     }
 
     supabase.table("routes").insert(data).execute()
@@ -90,36 +103,24 @@ def get_open_records() -> pd.DataFrame:
 
 def update_record(
     record_id,
-    plate=None,
-    dt=None,
     route=None,
+    vehicle=None,
     start_km=None,
     end_km=None,
     total_km=None,
-    kilos=None,
-    litres=None,
-    consumption=None,
     driver=None,
 ):
     update_data = {}
-    if plate is not None:
-        update_data["plate"] = plate
-    if dt is not None:
-        update_data["dt"] = str(dt)
     if route is not None:
         update_data["route"] = route
+    if vehicle is not None:
+        update_data["plate"] = vehicle
     if start_km is not None:
         update_data["start_km"] = to_float_or_none(start_km)
     if end_km is not None:
         update_data["end_km"] = to_float_or_none(end_km)
     if total_km is not None:
         update_data["total_km"] = to_float_or_none(total_km)
-    if kilos is not None:
-        update_data["kilos"] = to_float_or_none(kilos)
-    if litres is not None:
-        update_data["litres"] = to_float_or_none(litres)
-    if consumption is not None:
-        update_data["consumption"] = consumption
     if driver is not None:
         update_data["driver"] = driver
 
@@ -132,11 +133,13 @@ def update_record(
 def close_record(record_id):
     """
     Θέτει is_closed = true και κλειδώνει το δρομολόγιο.
+    Χρησιμοποιούμε closed_at σαν ημερομηνία/ώρα λήξης.
     """
+    now = datetime.utcnow().isoformat()
     supabase.table("routes").update(
         {
             "is_closed": True,
-            "closed_at": datetime.utcnow().isoformat()
+            "closed_at": now
         }
     ).eq("id", record_id).execute()
 
@@ -162,88 +165,70 @@ tab_new, tab_open, tab_all = st.tabs([
 # TAB 1: ΝΕΟ ΔΡΟΜΟΛΟΓΙΟ
 # =========================
 with tab_new:
-    st.subheader("🆕 Καταχώρηση νέου δρομολογίου")
+    st.subheader("🆕 Έναρξη νέου δρομολογίου")
+
+    st.info("Η ημερομηνία & ώρα έναρξης θα καταγραφεί αυτόματα με την αποθήκευση.")
 
     with st.form("route_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
+        # 2) Δρομολόγιο (dropdown)
+        route = st.selectbox("Δρομολόγιο", ROUTE_OPTIONS)
 
-        with col1:
-            plate = st.selectbox("Αριθμός πινακίδας", PLATE_OPTIONS)
-        with col2:
-            dt = st.date_input("Ημερομηνία", value=date.today())
+        # 3) Όχημα (dropdown)
+        vehicle = st.selectbox("Όχημα", VEHICLE_OPTIONS)
 
-        route = st.text_input("Δρομολόγιο")
+        # 4) Χιλιομετρική ένδειξη έναρξης
+        start_km = st.number_input(
+            "Χιλιομετρική ένδειξη ΕΝΑΡΞΗΣ",
+            min_value=0.0,
+            step=1.0,
+            format="%.0f"
+        )
 
-        col3, col4 = st.columns(2)
-        with col3:
-            start_km = st.number_input(
-                "Start Km",
-                min_value=0.0,
-                step=1.0,
-                format="%.0f"
-            )
-        with col4:
-            # Στην έναρξη μπορεί να μείνει 0 (θα συμπληρωθεί αργότερα)
-            end_km = st.number_input(
-                "End Km (προαιρετικό στην έναρξη)",
-                min_value=0.0,
-                step=1.0,
-                format="%.0f"
-            )
+        # 5) Χιλιομετρική ένδειξη λήξης (προαιρετικά σε αυτή τη φάση)
+        end_km = st.number_input(
+            "Χιλιομετρική ένδειξη ΛΗΞΗΣ (προαιρετικά, μπορεί να συμπληρωθεί αργότερα)",
+            min_value=0.0,
+            step=1.0,
+            format="%.0f"
+        )
 
-        # Υπολογισμός Total Km ΜΟΝΟ αν υπάρχει End Km > 0 και >= Start
+        # 6) Συνολικά χιλιόμετρα (End - Start, μόνο αν End > Start)
         if end_km > 0 and end_km >= start_km:
             total_km = end_km - start_km
         else:
             total_km = 0
 
         st.number_input(
-            "Total Km (υπολογίζεται αυτόματα)",
+            "Συνολικά διανυθέντα χιλιόμετρα (υπολογίζονται αυτόματα)",
             value=float(total_km),
             disabled=True
         )
 
-        col5, col6 = st.columns(2)
-        with col5:
-            kilos = st.number_input(
-                "Κιλά",
-                min_value=0.0,
-                step=10.0,
-                format="%.2f"
-            )
-        with col6:
-            litres = st.number_input(
-                "Λίτρα",
-                min_value=0.0,
-                step=1.0,
-                format="%.2f"
-            )
-
-        consumption = st.text_input("Κατανάλωση")
-
-        driver = st.selectbox("Οδηγός", DRIVER_OPTIONS)
+        # Ονοματεπώνυμο οδηγού (dropdown)
+        driver = st.selectbox("Ονοματεπώνυμο οδηγού", DRIVER_OPTIONS)
 
         submitted = st.form_submit_button("✅ Έναρξη / Αποθήκευση")
 
         if submitted:
-            # Αν το End Km είναι 0, το θεωρούμε "δεν έχει συμπληρωθεί ακόμα"
+            # Αν δεν έχουμε end_km ακόμη, τα αφήνουμε None
             end_km_db = end_km if end_km > 0 else None
             total_km_db = total_km if end_km_db is not None else None
 
+            started_at = datetime.now()  # ημερομηνία & ώρα έναρξης
+
             try:
                 insert_record(
-                    plate=plate,
-                    dt=dt,
                     route=route,
+                    vehicle=vehicle,
                     start_km=start_km,
                     end_km=end_km_db,
                     total_km=total_km_db,
-                    kilos=kilos,
-                    litres=litres,
-                    consumption=consumption,
                     driver=driver,
+                    started_at=started_at,
                 )
-                st.success("Το δρομολόγιο καταχωρήθηκε ως ανοιχτό ✅")
+                st.success(
+                    f"Δρομολόγιο ξεκίνησε στις {started_at.strftime('%d/%m/%Y %H:%M:%S')} ✅"
+                )
             except Exception as e:
                 st.error("Σφάλμα κατά την αποθήκευση στην Supabase.")
                 st.exception(e)
@@ -267,11 +252,17 @@ with tab_open:
         if "dt" in open_df.columns:
             open_df["dt"] = pd.to_datetime(open_df["dt"]).dt.date
 
+        # Αν έχουμε started_at / closed_at, κρατάμε και τις ώρες
+        if "started_at" in open_df.columns:
+            open_df["started_at_dt"] = pd.to_datetime(open_df["started_at"], errors="coerce")
+        else:
+            open_df["started_at_dt"] = pd.NaT
+
         # Φίλτρα
         colf1, colf2, colf3 = st.columns(3)
         with colf1:
             plate_filter = st.multiselect(
-                "Φίλτρο πινακίδας",
+                "Φίλτρο οχήματος",
                 options=sorted(open_df["plate"].dropna().unique())
             )
         with colf2:
@@ -310,16 +301,23 @@ with tab_open:
             ]
 
         st.markdown("### 📋 Ανοιχτά δρομολόγια")
-        st.dataframe(filtered_open, use_container_width=True)
+        show_cols = ["id", "dt", "started_at_dt", "route", "plate", "start_km", "end_km", "total_km", "driver"]
+        show_cols = [c for c in show_cols if c in filtered_open.columns]
+        st.dataframe(filtered_open[show_cols], use_container_width=True)
 
         # Επιλογή δρομολογίου για επεξεργασία
-        st.markdown("### ✏️ Επιλογή δρομολογίου για επεξεργασία")
+        st.markdown("### ✏️ Επιλογή δρομολογίου για συμπλήρωση / λήξη")
 
         if not filtered_open.empty:
-            id_labels = [
-                f"ID {row['id']} – {row['plate']} – {row['dt']} – {row['driver']}"
-                for _, row in filtered_open.iterrows()
-            ]
+            id_labels = []
+            for _, r in filtered_open.iterrows():
+                start_str = ""
+                if pd.notna(r.get("started_at_dt")):
+                    start_str = r["started_at_dt"].strftime("%d/%m %H:%M")
+                id_labels.append(
+                    f"ID {r['id']} – {r['plate']} – {r['driver']} – {start_str}"
+                )
+
             selected_label = st.selectbox(
                 "Διάλεξε δρομολόγιο",
                 options=id_labels,
@@ -335,31 +333,29 @@ with tab_open:
             if selected_id is not None:
                 row = filtered_open[filtered_open["id"] == selected_id].iloc[0]
 
-                st.markdown("#### ✏️ Επεξεργασία δρομολογίου")
+                st.markdown("#### ✏️ Συμπλήρωση / ενημέρωση δρομολογίου")
 
                 with st.form(f"edit_form_{selected_id}"):
                     ecol1, ecol2 = st.columns(2)
                     with ecol1:
-                        e_plate = st.selectbox(
-                            "Αριθμός πινακίδας",
-                            PLATE_OPTIONS,
-                            index=PLATE_OPTIONS.index(row["plate"]) if row["plate"] in PLATE_OPTIONS else 0
+                        e_route = st.selectbox(
+                            "Δρομολόγιο",
+                            ROUTE_OPTIONS,
+                            index=ROUTE_OPTIONS.index(row["route"]) if row.get("route") in ROUTE_OPTIONS else 0,
+                            key=f"route_{selected_id}",
                         )
                     with ecol2:
-                        e_dt = st.date_input(
-                            "Ημερομηνία",
-                            value=row["dt"] if isinstance(row["dt"], date) else date.today()
+                        e_vehicle = st.selectbox(
+                            "Όχημα",
+                            VEHICLE_OPTIONS,
+                            index=VEHICLE_OPTIONS.index(row["plate"]) if row.get("plate") in VEHICLE_OPTIONS else 0,
+                            key=f"veh_{selected_id}",
                         )
-
-                    e_route = st.text_input(
-                        "Δρομολόγιο",
-                        value=row.get("route", "") or ""
-                    )
 
                     ecol3, ecol4 = st.columns(2)
                     with ecol3:
                         e_start_km = st.number_input(
-                            "Start Km",
+                            "Χιλιομετρική ένδειξη ΕΝΑΡΞΗΣ",
                             min_value=0.0,
                             step=1.0,
                             format="%.0f",
@@ -368,7 +364,7 @@ with tab_open:
                         )
                     with ecol4:
                         e_end_km = st.number_input(
-                            "End Km",
+                            "Χιλιομετρική ένδειξη ΛΗΞΗΣ",
                             min_value=0.0,
                             step=1.0,
                             format="%.0f",
@@ -382,42 +378,16 @@ with tab_open:
                         e_total_km = 0
 
                     st.number_input(
-                        "Total Km (υπολογίζεται αυτόματα)",
+                        "Συνολικά διανυθέντα χιλιόμετρα (υπολογίζονται αυτόματα)",
                         value=float(e_total_km),
                         disabled=True,
                         key=f"total_{selected_id}",
                     )
 
-                    ecol5, ecol6 = st.columns(2)
-                    with ecol5:
-                        e_kilos = st.number_input(
-                            "Κιλά",
-                            min_value=0.0,
-                            step=10.0,
-                            format="%.2f",
-                            value=float(row.get("kilos") or 0),
-                            key=f"kilos_{selected_id}",
-                        )
-                    with ecol6:
-                        e_litres = st.number_input(
-                            "Λίτρα",
-                            min_value=0.0,
-                            step=1.0,
-                            format="%.2f",
-                            value=float(row.get("litres") or 0),
-                            key=f"litres_{selected_id}",
-                        )
-
-                    e_consumption = st.text_input(
-                        "Κατανάλωση",
-                        value=row.get("consumption", "") or "",
-                        key=f"cons_{selected_id}",
-                    )
-
                     e_driver = st.selectbox(
-                        "Οδηγός",
+                        "Ονοματεπώνυμο οδηγού",
                         DRIVER_OPTIONS,
-                        index=DRIVER_OPTIONS.index(row["driver"]) if row["driver"] in DRIVER_OPTIONS else 0,
+                        index=DRIVER_OPTIONS.index(row["driver"]) if row.get("driver") in DRIVER_OPTIONS else 0,
                         key=f"driver_{selected_id}",
                     )
 
@@ -427,10 +397,9 @@ with tab_open:
                     with col_btn2:
                         close_trip = st.form_submit_button("✅ Λήξη & Κλείδωμα")
 
-                    # Validation μόνο σε 2η φάση: όταν κάνει update/close
                     def validate_km():
                         if e_end_km > 0 and e_end_km < e_start_km:
-                            st.error("Το End Km δεν μπορεί να είναι μικρότερο από το Start Km.")
+                            st.error("Η χιλιομετρική ένδειξη λήξης δεν μπορεί να είναι μικρότερη από την έναρξη.")
                             return False
                         return True
 
@@ -439,15 +408,11 @@ with tab_open:
                             try:
                                 update_record(
                                     record_id=selected_id,
-                                    plate=e_plate,
-                                    dt=e_dt,
                                     route=e_route,
+                                    vehicle=e_vehicle,
                                     start_km=e_start_km,
                                     end_km=e_end_km if e_end_km > 0 else None,
                                     total_km=e_total_km if e_end_km > 0 else None,
-                                    kilos=e_kilos,
-                                    litres=e_litres,
-                                    consumption=e_consumption,
                                     driver=e_driver,
                                 )
                                 st.success("Οι αλλαγές αποθηκεύτηκαν ✅")
@@ -462,20 +427,16 @@ with tab_open:
                                 # Πρώτα σώζουμε τις τελευταίες τιμές
                                 update_record(
                                     record_id=selected_id,
-                                    plate=e_plate,
-                                    dt=e_dt,
                                     route=e_route,
+                                    vehicle=e_vehicle,
                                     start_km=e_start_km,
                                     end_km=e_end_km if e_end_km > 0 else None,
                                     total_km=e_total_km if e_end_km > 0 else None,
-                                    kilos=e_kilos,
-                                    litres=e_litres,
-                                    consumption=e_consumption,
                                     driver=e_driver,
                                 )
-                                # Μετά κλειδώνουμε
+                                # Μετά κλειδώνουμε (βάζει και ώρα λήξης)
                                 close_record(selected_id)
-                                st.success("Το δρομολόγιο έκλεισε και κλειδώθηκε ✅")
+                                st.success("Το δρομολόγιο έκλεισε & κλειδώθηκε ✅")
                                 st.experimental_rerun()
                             except Exception as e:
                                 st.error("Σφάλμα κατά το κλείδωμα του δρομολογίου.")
@@ -501,6 +462,16 @@ with tab_all:
         if "dt" in df.columns:
             df["dt"] = pd.to_datetime(df["dt"]).dt.date
 
+        if "started_at" in df.columns:
+            df["started_at_dt"] = pd.to_datetime(df["started_at"], errors="coerce")
+        else:
+            df["started_at_dt"] = pd.NaT
+
+        if "closed_at" in df.columns:
+            df["closed_at_dt"] = pd.to_datetime(df["closed_at"], errors="coerce")
+        else:
+            df["closed_at_dt"] = pd.NaT
+
         if "is_closed" in df.columns:
             df["status"] = df["is_closed"].apply(lambda x: "Κλειστό" if x else "Ανοιχτό")
 
@@ -513,7 +484,7 @@ with tab_all:
 
         with colf1:
             plate_filter = st.multiselect(
-                "Φίλτρο πινακίδας",
+                "Φίλτρο οχήματος",
                 options=sorted(df["plate"].dropna().unique())
             )
 
@@ -548,7 +519,9 @@ with tab_all:
             ]
 
         st.markdown("### 📊 Αποτελέσματα")
-        st.dataframe(filtered_df, use_container_width=True)
+        show_cols = ["id", "dt", "started_at_dt", "closed_at_dt", "route", "plate", "start_km", "end_km", "total_km", "driver", "status"]
+        show_cols = [c for c in show_cols if c in filtered_df.columns]
+        st.dataframe(filtered_df[show_cols], use_container_width=True)
 
         # Export σε Excel
         if not filtered_df.empty:
@@ -571,8 +544,11 @@ with tab_all:
             for _, row in filtered_df.iterrows():
                 colA, colB = st.columns([6, 1])
                 with colA:
+                    start_str = ""
+                    if pd.notna(row.get("started_at_dt")):
+                        start_str = row["started_at_dt"].strftime("%d/%m %H:%M")
                     st.write(
-                        f"ID: {row['id']} – {row['plate']} – {row['dt']} – {row.get('driver', '')}"
+                        f"ID: {row['id']} – {row['plate']} – {row.get('driver', '')} – {start_str}"
                     )
                 with colB:
                     if st.button("🗑️", key=f"del_{row['id']}"):
