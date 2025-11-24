@@ -791,12 +791,26 @@ with tab_all:
         show_cols = [c for c in show_cols if c in filtered_df.columns]
         st.dataframe(filtered_df[show_cols], use_container_width=True)
 
-                # Export σε Excel
+                       # Export σε Excel
         if not filtered_df.empty:
+            # Κάνουμε αντιγραφή μόνο για export
+            df_export = filtered_df.copy()
+
+            # Μετατροπή ΟΛΩΝ των στηλών σε string για να μην κολλάει το Excel
+            df_export = df_export.astype(str)
+
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                filtered_df.to_excel(writer, index=False, sheet_name="Routes")
+                df_export.to_excel(writer, index=False, sheet_name="Routes")
             output.seek(0)
+
+            st.download_button(
+                label="📥 Λήψη σε Excel",
+                data=output,
+                file_name="routes_filtered.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+
 
 
         # Διαγραφή εγγραφών
@@ -823,4 +837,5 @@ with tab_all:
                             st.exception(e)
     else:
         st.info("Δεν υπάρχουν ακόμη εγγραφές.")
+
 
