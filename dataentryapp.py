@@ -25,6 +25,17 @@ def get_supabase_client():
 supabase = get_supabase_client()
 
 
+# ---------- ΒΟΗΘΗΤΙΚΟ ΓΙΑ FLOAT/NULL ----------
+
+def to_float_or_none(x):
+    if x is None:
+        return None
+    try:
+        return float(x)
+    except Exception:
+        return None
+
+
 # ---------- CRUD ΣΥΝΑΡΤΗΣΕΙΣ ----------
 
 def insert_record(
@@ -34,14 +45,13 @@ def insert_record(
         "plate": plate,
         "dt": str(dt),  # ISO date string (yyyy-mm-dd)
         "route": route if route else None,
-        "start_km": float(start_km),
-        "end_km": float(end_km),
-        "total_km": float(total_km),
-        "kilos": float(kilos),
-        "litres": float(litres),
+        "start_km": to_float_or_none(start_km),
+        "end_km": to_float_or_none(end_km),
+        "total_km": to_float_or_none(total_km),
+        "kilos": to_float_or_none(kilos),
+        "litres": to_float_or_none(litres),
         "consumption": consumption if consumption else None,
         "driver": driver,
-        # ΥΠΟΘΕΤΟΥΜΕ ότι θα υπάρχει πεδίο is_closed στη βάση
         "is_closed": False,
     }
 
@@ -64,7 +74,6 @@ def get_all_records() -> pd.DataFrame:
 def get_open_records() -> pd.DataFrame:
     """
     Επιστρέφει μόνο τα δρομολόγια που δεν έχουν κλείσει (is_closed = false).
-    ΥΠΟΘΕΤΕΙ ότι το πεδίο is_closed υπάρχει στη βάση.
     """
     res = (
         supabase.table("routes")
@@ -100,15 +109,15 @@ def update_record(
     if route is not None:
         update_data["route"] = route
     if start_km is not None:
-        update_data["start_km"] = float(start_km)
+        update_data["start_km"] = to_float_or_none(start_km)
     if end_km is not None:
-        update_data["end_km"] = float(end_km)
+        update_data["end_km"] = to_float_or_none(end_km)
     if total_km is not None:
-        update_data["total_km"] = float(total_km)
+        update_data["total_km"] = to_float_or_none(total_km)
     if kilos is not None:
-        update_data["kilos"] = float(kilos)
+        update_data["kilos"] = to_float_or_none(kilos)
     if litres is not None:
-        update_data["litres"] = float(litres)
+        update_data["litres"] = to_float_or_none(litres)
     if consumption is not None:
         update_data["consumption"] = consumption
     if driver is not None:
@@ -123,7 +132,6 @@ def update_record(
 def close_record(record_id):
     """
     Θέτει is_closed = true και κλειδώνει το δρομολόγιο.
-    ΥΠΟΘΕΤΕΙ πεδία is_closed, closed_at.
     """
     supabase.table("routes").update(
         {
@@ -143,7 +151,11 @@ st.set_page_config(page_title="Δρομολόγια Οχημάτων", layout="c
 
 st.title("🚚 Καταχώρηση Δρομολογίων (Supabase)")
 
-tab_new, tab_open, tab_all = st.tabs(["🆕 Νέο Δρομολόγιο", "✏️ Ανοιχτά Δρομολόγια", "📄 Όλα & Αναφορές"])
+tab_new, tab_open, tab_all = st.tabs([
+    "🆕 Νέο Δρομολόγιο",
+    "✏️ Ανοιχτά Δρομολόγια",
+    "📄 Όλα & Αναφορές"
+])
 
 
 # =========================
@@ -164,12 +176,23 @@ with tab_new:
 
         col3, col4 = st.columns(2)
         with col3:
-            start_km = st.number_input("Start Km", min_value=0.0, step=1.0, format="%.0f")
+            start_km = st.number_input(
+                "Start Km",
+                min_value=0.0,
+                step=1.0,
+                format="%.0f"
+            )
         with col4:
-            end_km = st.number_input("End Km", min_value=0.0, step=1.0, format="%.0f")
+            # Στην έναρξη μπορεί να μείνει 0 (θα συμπληρωθεί αργότερα)
+            end_km = st.number_input(
+                "End Km (προαιρετικό στην έναρξη)",
+                min_value=0.0,
+                step=1.0,
+                format="%.0f"
+            )
 
-        # Υπολογισμός Total Km
-        if end_km >= start_km:
+        # Υπολογισμός Total Km ΜΟΝΟ αν υπάρχει End Km > 0 και >= Start
+        if end_km > 0 and end_km >= start_km:
             total_km = end_km - start_km
         else:
             total_km = 0
@@ -182,9 +205,19 @@ with tab_new:
 
         col5, col6 = st.columns(2)
         with col5:
-            kilos = st.number_input("Κιλά", min_value=0.0, step=10.0, format="%.2f")
+            kilos = st.number_input(
+                "Κιλά",
+                min_value=0.0,
+                step=10.0,
+                format="%.2f"
+            )
         with col6:
-            litres = st.number_input("Λίτρα", min_value=0.0, step=1.0, format="%.2f")
+            litres = st.number_input(
+                "Λίτρα",
+                min_value=0.0,
+                step=1.0,
+                format="%.2f"
+            )
 
         consumption = st.text_input("Κατανάλωση")
 
@@ -193,26 +226,27 @@ with tab_new:
         submitted = st.form_submit_button("✅ Έναρξη / Αποθήκευση")
 
         if submitted:
-            if end_km < start_km:
-                st.error("Το End Km δεν μπορεί να είναι μικρότερο από το Start Km.")
-            else:
-                try:
-                    insert_record(
-                        plate=plate,
-                        dt=dt,
-                        route=route,
-                        start_km=start_km,
-                        end_km=end_km,
-                        total_km=total_km,
-                        kilos=kilos,
-                        litres=litres,
-                        consumption=consumption,
-                        driver=driver,
-                    )
-                    st.success("Το δρομολόγιο καταχωρήθηκε ως ανοιχτό ✅")
-                except Exception as e:
-                    st.error("Σφάλμα κατά την αποθήκευση στην Supabase.")
-                    st.exception(e)
+            # Αν το End Km είναι 0, το θεωρούμε "δεν έχει συμπληρωθεί ακόμα"
+            end_km_db = end_km if end_km > 0 else None
+            total_km_db = total_km if end_km_db is not None else None
+
+            try:
+                insert_record(
+                    plate=plate,
+                    dt=dt,
+                    route=route,
+                    start_km=start_km,
+                    end_km=end_km_db,
+                    total_km=total_km_db,
+                    kilos=kilos,
+                    litres=litres,
+                    consumption=consumption,
+                    driver=driver,
+                )
+                st.success("Το δρομολόγιο καταχωρήθηκε ως ανοιχτό ✅")
+            except Exception as e:
+                st.error("Σφάλμα κατά την αποθήκευση στην Supabase.")
+                st.exception(e)
 
 
 # =========================
@@ -282,7 +316,6 @@ with tab_open:
         st.markdown("### ✏️ Επιλογή δρομολογίου για επεξεργασία")
 
         if not filtered_open.empty:
-            ids = filtered_open["id"].tolist()
             id_labels = [
                 f"ID {row['id']} – {row['plate']} – {row['dt']} – {row['driver']}"
                 for _, row in filtered_open.iterrows()
@@ -294,9 +327,8 @@ with tab_open:
             )
 
             # Βρίσκουμε το αντίστοιχο ID
-            selected_id_str = selected_label.split(" ")[1]  # "ID 123 – ..."
             try:
-                selected_id = int(selected_id_str)
+                selected_id = int(selected_label.split(" ")[1])
             except ValueError:
                 selected_id = None
 
@@ -319,7 +351,10 @@ with tab_open:
                             value=row["dt"] if isinstance(row["dt"], date) else date.today()
                         )
 
-                    e_route = st.text_input("Δρομολόγιο", value=row.get("route", "") or "")
+                    e_route = st.text_input(
+                        "Δρομολόγιο",
+                        value=row.get("route", "") or ""
+                    )
 
                     ecol3, ecol4 = st.columns(2)
                     with ecol3:
@@ -341,7 +376,7 @@ with tab_open:
                             key=f"end_{selected_id}",
                         )
 
-                    if e_end_km >= e_start_km:
+                    if e_end_km > 0 and e_end_km >= e_start_km:
                         e_total_km = e_end_km - e_start_km
                     else:
                         e_total_km = 0
@@ -392,50 +427,59 @@ with tab_open:
                     with col_btn2:
                         close_trip = st.form_submit_button("✅ Λήξη & Κλείδωμα")
 
+                    # Validation μόνο σε 2η φάση: όταν κάνει update/close
+                    def validate_km():
+                        if e_end_km > 0 and e_end_km < e_start_km:
+                            st.error("Το End Km δεν μπορεί να είναι μικρότερο από το Start Km.")
+                            return False
+                        return True
+
                     if save_changes:
-                        try:
-                            update_record(
-                                record_id=selected_id,
-                                plate=e_plate,
-                                dt=e_dt,
-                                route=e_route,
-                                start_km=e_start_km,
-                                end_km=e_end_km,
-                                total_km=e_total_km,
-                                kilos=e_kilos,
-                                litres=e_litres,
-                                consumption=e_consumption,
-                                driver=e_driver,
-                            )
-                            st.success("Οι αλλαγές αποθηκεύτηκαν ✅")
-                            st.experimental_rerun()
-                        except Exception as e:
-                            st.error("Σφάλμα κατά την ενημέρωση του δρομολογίου.")
-                            st.exception(e)
+                        if validate_km():
+                            try:
+                                update_record(
+                                    record_id=selected_id,
+                                    plate=e_plate,
+                                    dt=e_dt,
+                                    route=e_route,
+                                    start_km=e_start_km,
+                                    end_km=e_end_km if e_end_km > 0 else None,
+                                    total_km=e_total_km if e_end_km > 0 else None,
+                                    kilos=e_kilos,
+                                    litres=e_litres,
+                                    consumption=e_consumption,
+                                    driver=e_driver,
+                                )
+                                st.success("Οι αλλαγές αποθηκεύτηκαν ✅")
+                                st.experimental_rerun()
+                            except Exception as e:
+                                st.error("Σφάλμα κατά την ενημέρωση του δρομολογίου.")
+                                st.exception(e)
 
                     if close_trip:
-                        try:
-                            # Πρώτα σώζουμε τις τελευταίες τιμές
-                            update_record(
-                                record_id=selected_id,
-                                plate=e_plate,
-                                dt=e_dt,
-                                route=e_route,
-                                start_km=e_start_km,
-                                end_km=e_end_km,
-                                total_km=e_total_km,
-                                kilos=e_kilos,
-                                litres=e_litres,
-                                consumption=e_consumption,
-                                driver=e_driver,
-                            )
-                            # Μετά κλειδώνουμε
-                            close_record(selected_id)
-                            st.success("Το δρομολόγιο έκλεισε και κλειδώθηκε ✅")
-                            st.experimental_rerun()
-                        except Exception as e:
-                            st.error("Σφάλμα κατά το κλείδωμα του δρομολογίου.")
-                            st.exception(e)
+                        if validate_km():
+                            try:
+                                # Πρώτα σώζουμε τις τελευταίες τιμές
+                                update_record(
+                                    record_id=selected_id,
+                                    plate=e_plate,
+                                    dt=e_dt,
+                                    route=e_route,
+                                    start_km=e_start_km,
+                                    end_km=e_end_km if e_end_km > 0 else None,
+                                    total_km=e_total_km if e_end_km > 0 else None,
+                                    kilos=e_kilos,
+                                    litres=e_litres,
+                                    consumption=e_consumption,
+                                    driver=e_driver,
+                                )
+                                # Μετά κλειδώνουμε
+                                close_record(selected_id)
+                                st.success("Το δρομολόγιο έκλεισε και κλειδώθηκε ✅")
+                                st.experimental_rerun()
+                            except Exception as e:
+                                st.error("Σφάλμα κατά το κλείδωμα του δρομολογίου.")
+                                st.exception(e)
     else:
         st.info("Δεν υπάρχουν ανοιχτά δρομολόγια.")
 
