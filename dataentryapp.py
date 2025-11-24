@@ -12,7 +12,7 @@ ROUTE_OPTIONS = [
     "Επιστροφή αποθήκης",
 ]
 
-# Οχήματα (όπως πριν)
+# Οχήματα
 VEHICLE_OPTIONS = [
     "ΕΚΒ 4058", "ΙΑΕ 6034", "ΝΧΥ 3413", "ΙΕΜ 1556", "ΖΝΒ 7991",
     "ΖΝΒ 7971", "XZH1006", "ΝΧΥ 3547", "ΙΤΜ 3656", "ΝΧΥ 3546",
@@ -397,14 +397,14 @@ with tab_open:
         if "dt" in open_df.columns:
             open_df["dt"] = pd.to_datetime(open_df["dt"]).dt.date
 
-        # Αν έχουμε started_at / closed_at, κρατάμε και τις ώρες
+        # Αν έχουμε started_at, κρατάμε και τις ώρες
         if "started_at" in open_df.columns:
             open_df["started_at_dt"] = pd.to_datetime(open_df["started_at"], errors="coerce")
         else:
             open_df["started_at_dt"] = pd.NaT
 
-        # Φίλτρα
-                colf1, colf2, colf3 = st.columns(3)
+        # Φίλτρα με μοναδικά keys
+        colf1, colf2, colf3 = st.columns(3)
         with colf1:
             plate_filter = st.multiselect(
                 "Φίλτρο οχήματος",
@@ -429,7 +429,6 @@ with tab_open:
                 value=(min_date, max_date),
                 key="date_range_open",
             )
-
 
         filtered_open = open_df.copy()
 
@@ -743,7 +742,7 @@ with tab_all:
 
         st.markdown("### 🔍 Φίλτρα")
 
-                colf1, colf2, colf3 = st.columns(3)
+        colf1, colf2, colf3 = st.columns(3)
 
         with colf1:
             plate_filter = st.multiselect(
@@ -765,7 +764,6 @@ with tab_all:
                 value=(min_date, max_date),
                 key="date_range_all",
             )
-
 
         filtered_df = df.copy()
 
@@ -799,12 +797,9 @@ with tab_all:
         show_cols = [c for c in show_cols if c in filtered_df.columns]
         st.dataframe(filtered_df[show_cols], use_container_width=True)
 
-                       # Export σε Excel
+        # Export σε Excel – όλα ως string για να μη σκάει
         if not filtered_df.empty:
-            # Κάνουμε αντιγραφή μόνο για export
             df_export = filtered_df.copy()
-
-            # Μετατροπή ΟΛΩΝ των στηλών σε string για να μην κολλάει το Excel
             df_export = df_export.astype(str)
 
             output = io.BytesIO()
@@ -818,8 +813,6 @@ with tab_all:
                 file_name="routes_filtered.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
-
-
 
         # Διαγραφή εγγραφών
         st.markdown("### 🗑️ Διαγραφή εγγραφών (με βάση τα φιλτραρισμένα)")
@@ -845,6 +838,3 @@ with tab_all:
                             st.exception(e)
     else:
         st.info("Δεν υπάρχουν ακόμη εγγραφές.")
-
-
-
