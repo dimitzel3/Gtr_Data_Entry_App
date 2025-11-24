@@ -404,16 +404,18 @@ with tab_open:
             open_df["started_at_dt"] = pd.NaT
 
         # Φίλτρα
-        colf1, colf2, colf3 = st.columns(3)
+                colf1, colf2, colf3 = st.columns(3)
         with colf1:
             plate_filter = st.multiselect(
                 "Φίλτρο οχήματος",
-                options=sorted(open_df["plate"].dropna().unique())
+                options=sorted(open_df["plate"].dropna().unique()),
+                key="plate_filter_open",
             )
         with colf2:
             driver_filter = st.multiselect(
                 "Φίλτρο οδηγού",
-                options=sorted(open_df["driver"].dropna().unique())
+                options=sorted(open_df["driver"].dropna().unique()),
+                key="driver_filter_open",
             )
         with colf3:
             if "dt" in open_df.columns and not open_df["dt"].isna().all():
@@ -424,8 +426,10 @@ with tab_open:
                 max_date = date.today()
             date_range = st.date_input(
                 "Ημερομηνία από / έως",
-                value=(min_date, max_date)
+                value=(min_date, max_date),
+                key="date_range_open",
             )
+
 
         filtered_open = open_df.copy()
 
@@ -739,25 +743,29 @@ with tab_all:
 
         st.markdown("### 🔍 Φίλτρα")
 
-        colf1, colf2, colf3 = st.columns(3)
+                colf1, colf2, colf3 = st.columns(3)
 
         with colf1:
             plate_filter = st.multiselect(
                 "Φίλτρο οχήματος",
-                options=sorted(df["plate"].dropna().unique())
+                options=sorted(df["plate"].dropna().unique()),
+                key="plate_filter_all",
             )
 
         with colf2:
             driver_filter = st.multiselect(
                 "Φίλτρο οδηγού",
-                options=sorted(df["driver"].dropna().unique())
+                options=sorted(df["driver"].dropna().unique()),
+                key="driver_filter_all",
             )
 
         with colf3:
             date_range = st.date_input(
                 "Ημερομηνία από / έως",
-                value=(min_date, max_date)
+                value=(min_date, max_date),
+                key="date_range_all",
             )
+
 
         filtered_df = df.copy()
 
@@ -837,5 +845,6 @@ with tab_all:
                             st.exception(e)
     else:
         st.info("Δεν υπάρχουν ακόμη εγγραφές.")
+
 
 
