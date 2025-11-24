@@ -49,7 +49,24 @@ def to_float_or_none(x):
 # ---------- CRUD ΣΥΝΑΡΤΗΣΕΙΣ ----------
 
 def insert_record(
-    route, vehicle, start_km, end_km, total_km, driver, started_at
+    route,
+    vehicle,
+    start_km,
+    end_km,
+    total_km,
+    driver,
+    started_at,
+    # Milk fields
+    sheep_conv_kg,
+    goat_conv_kg,
+    total_conv_kg_scale,
+    conv_da_refs,
+    sheep_bio_kg,
+    goat_bio_kg,
+    bio_da_refs,
+    total_all_da,
+    total_all_scale,
+    diff_da_vs_scale,
 ):
     """
     Δημιουργεί νέο δρομολόγιο (ανοιχτό).
@@ -65,7 +82,17 @@ def insert_record(
         "dt": started_at.date().isoformat(),          # για φίλτρα ημερομηνίας
         "started_at": started_at.isoformat(),         # full datetime έναρξης
         "is_closed": False,
-        # closed_at θα μπει όταν κλείσουμε το δρομολόγιο
+        # milk fields
+        "sheep_conv_kg": to_float_or_none(sheep_conv_kg),
+        "goat_conv_kg": to_float_or_none(goat_conv_kg),
+        "total_conv_kg_scale": to_float_or_none(total_conv_kg_scale),
+        "conv_da_refs": conv_da_refs if conv_da_refs else None,
+        "sheep_bio_kg": to_float_or_none(sheep_bio_kg),
+        "goat_bio_kg": to_float_or_none(goat_bio_kg),
+        "bio_da_refs": bio_da_refs if bio_da_refs else None,
+        "total_all_da": to_float_or_none(total_all_da),
+        "total_all_scale": to_float_or_none(total_all_scale),
+        "diff_da_vs_scale": to_float_or_none(diff_da_vs_scale),
     }
 
     supabase.table("routes").insert(data).execute()
@@ -109,6 +136,17 @@ def update_record(
     end_km=None,
     total_km=None,
     driver=None,
+    # milk fields
+    sheep_conv_kg=None,
+    goat_conv_kg=None,
+    total_conv_kg_scale=None,
+    conv_da_refs=None,
+    sheep_bio_kg=None,
+    goat_bio_kg=None,
+    bio_da_refs=None,
+    total_all_da=None,
+    total_all_scale=None,
+    diff_da_vs_scale=None,
 ):
     update_data = {}
     if route is not None:
@@ -123,6 +161,28 @@ def update_record(
         update_data["total_km"] = to_float_or_none(total_km)
     if driver is not None:
         update_data["driver"] = driver
+
+    # milk fields
+    if sheep_conv_kg is not None:
+        update_data["sheep_conv_kg"] = to_float_or_none(sheep_conv_kg)
+    if goat_conv_kg is not None:
+        update_data["goat_conv_kg"] = to_float_or_none(goat_conv_kg)
+    if total_conv_kg_scale is not None:
+        update_data["total_conv_kg_scale"] = to_float_or_none(total_conv_kg_scale)
+    if conv_da_refs is not None:
+        update_data["conv_da_refs"] = conv_da_refs
+    if sheep_bio_kg is not None:
+        update_data["sheep_bio_kg"] = to_float_or_none(sheep_bio_kg)
+    if goat_bio_kg is not None:
+        update_data["goat_bio_kg"] = to_float_or_none(goat_bio_kg)
+    if bio_da_refs is not None:
+        update_data["bio_da_refs"] = bio_da_refs
+    if total_all_da is not None:
+        update_data["total_all_da"] = to_float_or_none(total_all_da)
+    if total_all_scale is not None:
+        update_data["total_all_scale"] = to_float_or_none(total_all_scale)
+    if diff_da_vs_scale is not None:
+        update_data["diff_da_vs_scale"] = to_float_or_none(diff_da_vs_scale)
 
     if not update_data:
         return
@@ -152,7 +212,7 @@ def delete_record(record_id: int):
 
 st.set_page_config(page_title="Δρομολόγια Οχημάτων", layout="centered")
 
-st.title("🚚 Καταχώρηση Δρομολογίων (Supabase)")
+st.title("🚚 Καταχώρηση Δρομολογίων & Συλλογή Γάλακτος")
 
 tab_new, tab_open, tab_all = st.tabs([
     "🆕 Νέο Δρομολόγιο",
@@ -207,6 +267,81 @@ with tab_new:
         # Ονοματεπώνυμο οδηγού (dropdown)
         driver = st.selectbox("Ονοματεπώνυμο οδηγού", DRIVER_OPTIONS)
 
+        st.markdown("---")
+        st.subheader("🥛 Συλλογή Γάλακτος")
+
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            sheep_conv_kg = st.number_input(
+                "Πρόβειο Συμβατικό Γάλα (κιλά)",
+                min_value=0.0,
+                step=1.0,
+                format="%.2f",
+            )
+        with col_m2:
+            goat_conv_kg = st.number_input(
+                "Γίδινο Συμβατικό Γάλα (κιλά)",
+                min_value=0.0,
+                step=1.0,
+                format="%.2f",
+            )
+
+        total_conv_kg_scale = st.number_input(
+            "Σύνολο Συμβατικό Γάλα (Ζυγολόγιο)",
+            min_value=0.0,
+            step=1.0,
+            format="%.2f",
+        )
+
+        conv_da_refs = st.text_area(
+            "Σχετικά Δελτία Αποστολής (Συμβατικό)",
+            placeholder="π.χ. ΔΑ 123, ΔΑ 124..."
+        )
+
+        col_m3, col_m4 = st.columns(2)
+        with col_m3:
+            sheep_bio_kg = st.number_input(
+                "Πρόβειο Βιολογικό Γάλα (κιλά)",
+                min_value=0.0,
+                step=1.0,
+                format="%.2f",
+            )
+        with col_m4:
+            goat_bio_kg = st.number_input(
+                "Γίδινο Βιολογικό Γάλα (κιλά)",
+                min_value=0.0,
+                step=1.0,
+                format="%.2f",
+            )
+
+        bio_da_refs = st.text_area(
+            "Σχετικά Δελτία Αποστολής (Βιολογικό)",
+            placeholder="π.χ. ΔΑ ΒΙΟ 10, ΔΑ ΒΙΟ 11..."
+        )
+
+        total_all_da = st.number_input(
+            "Σύνολο Συμβατικό + Βιολογικό (ΔΑ)",
+            min_value=0.0,
+            step=1.0,
+            format="%.2f",
+        )
+
+        total_all_scale = st.number_input(
+            "Σύνολο Συμβατικό + Βιολογικό (Ζυγολόγιο)",
+            min_value=0.0,
+            step=1.0,
+            format="%.2f",
+        )
+
+        # Διαφορά = ΔΑ - Ζυγολόγιο
+        diff_da_vs_scale = total_all_da - total_all_scale
+
+        st.number_input(
+            "Διαφορά (ΔΑ - Ζυγολόγιο)",
+            value=float(diff_da_vs_scale),
+            disabled=True,
+        )
+
         submitted = st.form_submit_button("✅ Έναρξη / Αποθήκευση")
 
         if submitted:
@@ -225,6 +360,16 @@ with tab_new:
                     total_km=total_km_db,
                     driver=driver,
                     started_at=started_at,
+                    sheep_conv_kg=sheep_conv_kg,
+                    goat_conv_kg=goat_conv_kg,
+                    total_conv_kg_scale=total_conv_kg_scale,
+                    conv_da_refs=conv_da_refs,
+                    sheep_bio_kg=sheep_bio_kg,
+                    goat_bio_kg=goat_bio_kg,
+                    bio_da_refs=bio_da_refs,
+                    total_all_da=total_all_da,
+                    total_all_scale=total_all_scale,
+                    diff_da_vs_scale=diff_da_vs_scale,
                 )
                 st.success(
                     f"Δρομολόγιο ξεκίνησε στις {started_at.strftime('%d/%m/%Y %H:%M:%S')} ✅"
@@ -301,7 +446,10 @@ with tab_open:
             ]
 
         st.markdown("### 📋 Ανοιχτά δρομολόγια")
-        show_cols = ["id", "dt", "started_at_dt", "route", "plate", "start_km", "end_km", "total_km", "driver"]
+        show_cols = [
+            "id", "dt", "started_at_dt", "route", "plate",
+            "start_km", "end_km", "total_km", "driver"
+        ]
         show_cols = [c for c in show_cols if c in filtered_open.columns]
         st.dataframe(filtered_open[show_cols], use_container_width=True)
 
@@ -333,7 +481,7 @@ with tab_open:
             if selected_id is not None:
                 row = filtered_open[filtered_open["id"] == selected_id].iloc[0]
 
-                st.markdown("#### ✏️ Συμπλήρωση / ενημέρωση δρομολογίου")
+                st.markdown("#### ✏️ Συμπλήρωση / ενημέρωση δρομολογίου & συλλογής γάλακτος")
 
                 with st.form(f"edit_form_{selected_id}"):
                     ecol1, ecol2 = st.columns(2)
@@ -391,6 +539,97 @@ with tab_open:
                         key=f"driver_{selected_id}",
                     )
 
+                    st.markdown("---")
+                    st.subheader("🥛 Συλλογή Γάλακτος")
+
+                    em1, em2 = st.columns(2)
+                    with em1:
+                        e_sheep_conv_kg = st.number_input(
+                            "Πρόβειο Συμβατικό Γάλα (κιλά)",
+                            min_value=0.0,
+                            step=1.0,
+                            format="%.2f",
+                            value=float(row.get("sheep_conv_kg") or 0),
+                            key=f"sheep_conv_{selected_id}",
+                        )
+                    with em2:
+                        e_goat_conv_kg = st.number_input(
+                            "Γίδινο Συμβατικό Γάλα (κιλά)",
+                            min_value=0.0,
+                            step=1.0,
+                            format="%.2f",
+                            value=float(row.get("goat_conv_kg") or 0),
+                            key=f"goat_conv_{selected_id}",
+                        )
+
+                    e_total_conv_kg_scale = st.number_input(
+                        "Σύνολο Συμβατικό Γάλα (Ζυγολόγιο)",
+                        min_value=0.0,
+                        step=1.0,
+                        format="%.2f",
+                        value=float(row.get("total_conv_kg_scale") or 0),
+                        key=f"total_conv_scale_{selected_id}",
+                    )
+
+                    e_conv_da_refs = st.text_area(
+                        "Σχετικά Δελτία Αποστολής (Συμβατικό)",
+                        value=row.get("conv_da_refs", "") or "",
+                        key=f"conv_da_refs_{selected_id}",
+                    )
+
+                    em3, em4 = st.columns(2)
+                    with em3:
+                        e_sheep_bio_kg = st.number_input(
+                            "Πρόβειο Βιολογικό Γάλα (κιλά)",
+                            min_value=0.0,
+                            step=1.0,
+                            format="%.2f",
+                            value=float(row.get("sheep_bio_kg") or 0),
+                            key=f"sheep_bio_{selected_id}",
+                        )
+                    with em4:
+                        e_goat_bio_kg = st.number_input(
+                            "Γίδινο Βιολογικό Γάλα (κιλά)",
+                            min_value=0.0,
+                            step=1.0,
+                            format="%.2f",
+                            value=float(row.get("goat_bio_kg") or 0),
+                            key=f"goat_bio_{selected_id}",
+                        )
+
+                    e_bio_da_refs = st.text_area(
+                        "Σχετικά Δελτία Αποστολής (Βιολογικό)",
+                        value=row.get("bio_da_refs", "") or "",
+                        key=f"bio_da_refs_{selected_id}",
+                    )
+
+                    e_total_all_da = st.number_input(
+                        "Σύνολο Συμβατικό + Βιολογικό (ΔΑ)",
+                        min_value=0.0,
+                        step=1.0,
+                        format="%.2f",
+                        value=float(row.get("total_all_da") or 0),
+                        key=f"total_all_da_{selected_id}",
+                    )
+
+                    e_total_all_scale = st.number_input(
+                        "Σύνολο Συμβατικό + Βιολογικό (Ζυγολόγιο)",
+                        min_value=0.0,
+                        step=1.0,
+                        format="%.2f",
+                        value=float(row.get("total_all_scale") or 0),
+                        key=f"total_all_scale_{selected_id}",
+                    )
+
+                    e_diff_da_vs_scale = e_total_all_da - e_total_all_scale
+
+                    st.number_input(
+                        "Διαφορά (ΔΑ - Ζυγολόγιο)",
+                        value=float(e_diff_da_vs_scale),
+                        disabled=True,
+                        key=f"diff_{selected_id}",
+                    )
+
                     col_btn1, col_btn2 = st.columns(2)
                     with col_btn1:
                         save_changes = st.form_submit_button("💾 Αποθήκευση αλλαγών")
@@ -414,6 +653,16 @@ with tab_open:
                                     end_km=e_end_km if e_end_km > 0 else None,
                                     total_km=e_total_km if e_end_km > 0 else None,
                                     driver=e_driver,
+                                    sheep_conv_kg=e_sheep_conv_kg,
+                                    goat_conv_kg=e_goat_conv_kg,
+                                    total_conv_kg_scale=e_total_conv_kg_scale,
+                                    conv_da_refs=e_conv_da_refs,
+                                    sheep_bio_kg=e_sheep_bio_kg,
+                                    goat_bio_kg=e_goat_bio_kg,
+                                    bio_da_refs=e_bio_da_refs,
+                                    total_all_da=e_total_all_da,
+                                    total_all_scale=e_total_all_scale,
+                                    diff_da_vs_scale=e_diff_da_vs_scale,
                                 )
                                 st.success("Οι αλλαγές αποθηκεύτηκαν ✅")
                                 st.experimental_rerun()
@@ -433,6 +682,16 @@ with tab_open:
                                     end_km=e_end_km if e_end_km > 0 else None,
                                     total_km=e_total_km if e_end_km > 0 else None,
                                     driver=e_driver,
+                                    sheep_conv_kg=e_sheep_conv_kg,
+                                    goat_conv_kg=e_goat_conv_kg,
+                                    total_conv_kg_scale=e_total_conv_kg_scale,
+                                    conv_da_refs=e_conv_da_refs,
+                                    sheep_bio_kg=e_sheep_bio_kg,
+                                    goat_bio_kg=e_goat_bio_kg,
+                                    bio_da_refs=e_bio_da_refs,
+                                    total_all_da=e_total_all_da,
+                                    total_all_scale=e_total_all_scale,
+                                    diff_da_vs_scale=e_diff_da_vs_scale,
                                 )
                                 # Μετά κλειδώνουμε (βάζει και ώρα λήξης)
                                 close_record(selected_id)
@@ -519,7 +778,16 @@ with tab_all:
             ]
 
         st.markdown("### 📊 Αποτελέσματα")
-        show_cols = ["id", "dt", "started_at_dt", "closed_at_dt", "route", "plate", "start_km", "end_km", "total_km", "driver", "status"]
+        show_cols = [
+            "id", "dt", "started_at_dt", "closed_at_dt",
+            "route", "plate", "start_km", "end_km", "total_km",
+            "driver",
+            "sheep_conv_kg", "goat_conv_kg", "total_conv_kg_scale",
+            "conv_da_refs",
+            "sheep_bio_kg", "goat_bio_kg", "bio_da_refs",
+            "total_all_da", "total_all_scale", "diff_da_vs_scale",
+            "status",
+        ]
         show_cols = [c for c in show_cols if c in filtered_df.columns]
         st.dataframe(filtered_df[show_cols], use_container_width=True)
 
