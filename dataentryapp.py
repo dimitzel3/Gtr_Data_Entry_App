@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import date, datetime
+import pytz  # για ελληνική ώρα
 import io  # για Excel export
 from supabase import create_client
 
@@ -223,7 +224,8 @@ def close_record(record_id):
     Θέτει is_closed = true και κλειδώνει το δρομολόγιο.
     Χρησιμοποιούμε closed_at σαν ημερομηνία/ώρα λήξης.
     """
-    now = datetime.utcnow().isoformat()
+    athens_tz = pytz.timezone('Europe/Athens')
+    now = datetime.now(athens_tz).isoformat()
     supabase.table("routes").update(
         {
             "is_closed": True,
@@ -388,7 +390,10 @@ with tab_new:
             # Αν δεν έχουμε end_km ακόμη, τα αφήνουμε None
             end_km_db = end_km if end_km > 0 else None
             total_km_db = total_km if end_km_db is not None else None
-            started_at = datetime.now()  # ημερομηνία & ώρα έναρξης
+            
+            # Ελληνική ώρα (Athens timezone)
+            athens_tz = pytz.timezone('Europe/Athens')
+            started_at = datetime.now(athens_tz)  # ημερομηνία & ώρα έναρξης με ελληνική ώρα
 
             try:
                 insert_record(
