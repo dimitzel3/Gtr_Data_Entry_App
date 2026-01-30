@@ -741,7 +741,7 @@ with tab_open:
                                     diff_da_vs_scale=e_diff_da_vs_scale,
                                 )
                                 st.success("Οι αλλαγές αποθηκεύτηκαν ✅")
-                                st.experimental_rerun()
+                                st.rerun()
                             except Exception as e:
                                 st.error("Σφάλμα κατά την ενημέρωση του δρομολογίου.")
                                 st.exception(e)
@@ -775,7 +775,7 @@ with tab_open:
                                 # Μετά κλειδώνουμε (βάζει και ώρα λήξης)
                                 close_record(selected_id)
                                 st.success("Το δρομολόγιο έκλεισε & κλειδώθηκε ✅")
-                                st.experimental_rerun()
+                                st.rerun()
                             except Exception as e:
                                 st.error("Σφάλμα κατά το κλείδωμα του δρομολογίου.")
                                 st.exception(e)
@@ -896,7 +896,7 @@ with tab_all:
                         try:
                             delete_record(int(row["id"]))
                             st.success(f"Η εγγραφή με ID {row['id']} διαγράφηκε.")
-                            st.experimental_rerun()
+                            st.rerun()
                         except Exception as e:
                             st.error("Σφάλμα κατά τη διαγραφή από Supabase.")
                             st.exception(e)
