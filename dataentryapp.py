@@ -225,7 +225,7 @@ def close_record(record_id):
     Χρησιμοποιούμε closed_at σαν ημερομηνία/ώρα λήξης.
     """
     athens_tz = pytz.timezone('Europe/Athens')
-    now = datetime.now(athens_tz).isoformat()
+    now = datetime.now(athens_tz).replace(tzinfo=None).isoformat()  # naive datetime με ελληνική ώρα
     supabase.table("routes").update(
         {
             "is_closed": True,
@@ -391,9 +391,9 @@ with tab_new:
             end_km_db = end_km if end_km > 0 else None
             total_km_db = total_km if end_km_db is not None else None
             
-            # Ελληνική ώρα (Athens timezone)
+            # Ελληνική ώρα (Athens timezone) - naive datetime για αποθήκευση
             athens_tz = pytz.timezone('Europe/Athens')
-            started_at = datetime.now(athens_tz)  # ημερομηνία & ώρα έναρξης με ελληνική ώρα
+            started_at = datetime.now(athens_tz).replace(tzinfo=None)  # αφαιρούμε timezone για αποθήκευση
 
             try:
                 insert_record(
@@ -443,7 +443,7 @@ with tab_open:
         if "dt" in open_df.columns:
             open_df["dt"] = pd.to_datetime(open_df["dt"]).dt.date
 
-        # Αν έχουμε started_at, κρατάμε και τις ώρες
+        # Αν έχουμε started_at, κρατάμε και τις ώρες (ήδη σε ελληνική ώρα)
         if "started_at" in open_df.columns:
             open_df["started_at_dt"] = pd.to_datetime(open_df["started_at"], errors="coerce")
         else:
