@@ -78,6 +78,7 @@ def insert_record(
     total_km,
     driver,
     started_at,
+    factory_entry_at=None,  # ΝΕΟ ΠΕΔΙΟ
     # Milk fields
     sheep_conv_kg,
     goat_conv_kg,
@@ -106,6 +107,7 @@ def insert_record(
         "driver": driver,
         "dt": started_at.date().isoformat(),  # για φίλτρα ημερομηνίας
         "started_at": started_at.isoformat(),  # full datetime έναρξης
+        "factory_entry_at": factory_entry_at.isoformat() if factory_entry_at else None,  # ΝΕΟ
         "is_closed": False,
         # milk fields
         "sheep_conv_kg": to_float_or_none(sheep_conv_kg),
@@ -160,6 +162,7 @@ def update_record(
     end_km=None,
     total_km=None,
     driver=None,
+    factory_entry_at=None,  # ΝΕΟ
     # milk fields
     sheep_conv_kg=None,
     goat_conv_kg=None,
@@ -189,6 +192,8 @@ def update_record(
         update_data["total_km"] = to_float_or_none(total_km)
     if driver is not None:
         update_data["driver"] = driver
+    if factory_entry_at is not None:  # ΝΕΟ
+        update_data["factory_entry_at"] = factory_entry_at.isoformat() if factory_entry_at else None
     # milk fields
     if sheep_conv_kg is not None:
         update_data["sheep_conv_kg"] = to_float_or_none(sheep_conv_kg)
@@ -703,10 +708,12 @@ with tab_open:
                         key=f"diff_{selected_id}",
                     )
 
-                    col_btn1, col_btn2 = st.columns(2)
+                    col_btn1, col_btn2, col_btn3 = st.columns(3)
                     with col_btn1:
                         save_changes = st.form_submit_button("💾 Αποθήκευση αλλαγών")
                     with col_btn2:
+                        factory_entry = st.form_submit_button("🏭 Είσοδος Εργοστάσιο Παραλαβής")
+                    with col_btn3:
                         close_trip = st.form_submit_button("✅ Λήξη & Κλείδωμα")
 
                     def validate_km():
@@ -744,6 +751,42 @@ with tab_open:
                                 st.rerun()
                             except Exception as e:
                                 st.error("Σφάλμα κατά την ενημέρωση του δρομολογίου.")
+                                st.exception(e)
+
+                    if factory_entry:
+                        if validate_km():
+                            try:
+                                # Καταγραφή ώρας εισόδου στο εργοστάσιο
+                                athens_tz = pytz.timezone('Europe/Athens')
+                                entry_time = datetime.now(athens_tz).replace(tzinfo=None)
+                                
+                                update_record(
+                                    record_id=selected_id,
+                                    route=e_route,
+                                    client=e_client,
+                                    vehicle=e_vehicle,
+                                    start_km=e_start_km,
+                                    end_km=e_end_km if e_end_km > 0 else None,
+                                    total_km=e_total_km if e_end_km > 0 else None,
+                                    driver=e_driver,
+                                    factory_entry_at=entry_time,  # ΚΑΤΑΓΡΑΦΗ ΕΙΣΟΔΟΥ
+                                    sheep_conv_kg=e_sheep_conv_kg,
+                                    goat_conv_kg=e_goat_conv_kg,
+                                    total_conv_kg_scale=e_total_conv_kg_scale,
+                                    conv_da_refs=e_conv_da_refs,
+                                    sheep_bio_kg=e_sheep_bio_kg,
+                                    goat_bio_kg=e_goat_bio_kg,
+                                    sheep_bio_scale=e_sheep_bio_scale,
+                                    goat_bio_scale=e_goat_bio_scale,
+                                    bio_da_refs=e_bio_da_refs,
+                                    total_all_da=e_total_all_da,
+                                    total_all_scale=e_total_all_scale,
+                                    diff_da_vs_scale=e_diff_da_vs_scale,
+                                )
+                                st.success(f"Είσοδος εργοστασίου καταγράφηκε: {entry_time.strftime('%d/%m/%Y %H:%M:%S')} ✅")
+                                st.rerun()
+                            except Exception as e:
+                                st.error("Σφάλμα κατά την καταγραφή εισόδου.")
                                 st.exception(e)
 
                     if close_trip:
