@@ -78,7 +78,6 @@ def insert_record(
     total_km,
     driver,
     started_at,
-    factory_entry_at=None,  # ΝΕΟ ΠΕΔΙΟ
     # Milk fields
     sheep_conv_kg,
     goat_conv_kg,
@@ -92,6 +91,7 @@ def insert_record(
     total_all_da,
     total_all_scale,
     diff_da_vs_scale,
+    factory_entry_at=None,  # ΝΕΟ ΠΕΔΙΟ (στο τέλος με default)
 ):
     """
     Δημιουργεί νέο δρομολόγιο (ανοιχτό).
