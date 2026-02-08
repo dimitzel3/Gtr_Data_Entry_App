@@ -83,6 +83,7 @@ def insert_record(
     # Milk fields
     sheep_conv_kg,
     goat_conv_kg,
+    cow_conv_kg,  # ΝΕΟ - Αγελαδινό Συμβατικό
     total_conv_kg_scale,
     conv_da_refs,
     sheep_bio_kg,
@@ -114,6 +115,7 @@ def insert_record(
         # milk fields
         "sheep_conv_kg": to_float_or_none(sheep_conv_kg),
         "goat_conv_kg": to_float_or_none(goat_conv_kg),
+        "cow_conv_kg": to_float_or_none(cow_conv_kg),  # ΝΕΟ
         "total_conv_kg_scale": to_float_or_none(total_conv_kg_scale),
         "conv_da_refs": conv_da_refs if conv_da_refs else None,
         "sheep_bio_kg": to_float_or_none(sheep_bio_kg),
@@ -168,6 +170,7 @@ def update_record(
     # milk fields
     sheep_conv_kg=None,
     goat_conv_kg=None,
+    cow_conv_kg=None,  # ΝΕΟ - Αγελαδινό Συμβατικό
     total_conv_kg_scale=None,
     conv_da_refs=None,
     sheep_bio_kg=None,
@@ -201,6 +204,8 @@ def update_record(
         update_data["sheep_conv_kg"] = to_float_or_none(sheep_conv_kg)
     if goat_conv_kg is not None:
         update_data["goat_conv_kg"] = to_float_or_none(goat_conv_kg)
+    if cow_conv_kg is not None:  # ΝΕΟ
+        update_data["cow_conv_kg"] = to_float_or_none(cow_conv_kg)
     if total_conv_kg_scale is not None:
         update_data["total_conv_kg_scale"] = to_float_or_none(total_conv_kg_scale)
     if conv_da_refs is not None:
@@ -303,7 +308,8 @@ with tab_new:
         st.markdown("---")
         st.subheader("🥛 Συλλογή Γάλακτος")
 
-        col_m1, col_m2 = st.columns(2)
+        # ΝΕΑ ΔΙΑΤΑΞΗ: 3 στήλες για τα 3 είδη συμβατικού γάλακτος
+        col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1:
             sheep_conv_kg = st.number_input(
                 "Πρόβειο Συμβατικό Γάλα (κιλά)",
@@ -314,6 +320,13 @@ with tab_new:
         with col_m2:
             goat_conv_kg = st.number_input(
                 "Γίδινο Συμβατικό Γάλα (κιλά)",
+                min_value=0.0,
+                step=1.0,
+                format="%.2f",
+            )
+        with col_m3:
+            cow_conv_kg = st.number_input(
+                "Αγελαδινό Συμβατικό Γάλα (κιλά)",
                 min_value=0.0,
                 step=1.0,
                 format="%.2f",
@@ -331,15 +344,15 @@ with tab_new:
             placeholder="π.χ. ΔΑ 123, ΔΑ 124..."
         )
 
-        col_m3, col_m4 = st.columns(2)
-        with col_m3:
+        col_m4, col_m5 = st.columns(2)
+        with col_m4:
             sheep_bio_kg = st.number_input(
                 "Πρόβειο Βιολογικό Γάλα (Κιλά)",
                 min_value=0.0,
                 step=1.0,
                 format="%.2f",
             )
-        with col_m4:
+        with col_m5:
             goat_bio_kg = st.number_input(
                 "Γίδινο Βιολογικό Γάλα (Κιλά)",
                 min_value=0.0,
@@ -348,15 +361,15 @@ with tab_new:
             )
 
         # ΝΕΑ ΠΕΔΙΑ: Ζυγολόγιο Βιολογικού
-        col_m5, col_m6 = st.columns(2)
-        with col_m5:
+        col_m6, col_m7 = st.columns(2)
+        with col_m6:
             sheep_bio_scale = st.number_input(
                 "Πρόβειο Βιολογικό Γάλα (Ζυγολόγιο)",
                 min_value=0.0,
                 step=1.0,
                 format="%.2f",
             )
-        with col_m6:
+        with col_m7:
             goat_bio_scale = st.number_input(
                 "Γίδινο Βιολογικό Γάλα (Ζυγολόγιο)",
                 min_value=0.0,
@@ -414,6 +427,7 @@ with tab_new:
                     started_at=started_at,
                     sheep_conv_kg=sheep_conv_kg,
                     goat_conv_kg=goat_conv_kg,
+                    cow_conv_kg=cow_conv_kg,  # ΝΕΟ
                     total_conv_kg_scale=total_conv_kg_scale,
                     conv_da_refs=conv_da_refs,
                     sheep_bio_kg=sheep_bio_kg,
@@ -602,7 +616,8 @@ with tab_open:
                     st.markdown("---")
                     st.subheader("🥛 Συλλογή Γάλακτος")
 
-                    em1, em2 = st.columns(2)
+                    # ΝΕΑ ΔΙΑΤΑΞΗ: 3 στήλες για τα 3 είδη συμβατικού γάλακτος
+                    em1, em2, em3 = st.columns(3)
                     with em1:
                         e_sheep_conv_kg = st.number_input(
                             "Πρόβειο Συμβατικό Γάλα (κιλά)",
@@ -621,6 +636,15 @@ with tab_open:
                             value=float(row.get("goat_conv_kg") or 0),
                             key=f"goat_conv_{selected_id}",
                         )
+                    with em3:
+                        e_cow_conv_kg = st.number_input(
+                            "Αγελαδινό Συμβατικό Γάλα (κιλά)",
+                            min_value=0.0,
+                            step=1.0,
+                            format="%.2f",
+                            value=float(row.get("cow_conv_kg") or 0),
+                            key=f"cow_conv_{selected_id}",
+                        )
 
                     e_total_conv_kg_scale = st.number_input(
                         "Σύνολο Συμβατικό Γάλα (Ζυγολόγιο)",
@@ -637,8 +661,8 @@ with tab_open:
                         key=f"conv_da_refs_{selected_id}",
                     )
 
-                    em3, em4 = st.columns(2)
-                    with em3:
+                    em4, em5 = st.columns(2)
+                    with em4:
                         e_sheep_bio_kg = st.number_input(
                             "Πρόβειο Βιολογικό Γάλα (Κιλά)",
                             min_value=0.0,
@@ -647,7 +671,7 @@ with tab_open:
                             value=float(row.get("sheep_bio_kg") or 0),
                             key=f"sheep_bio_{selected_id}",
                         )
-                    with em4:
+                    with em5:
                         e_goat_bio_kg = st.number_input(
                             "Γίδινο Βιολογικό Γάλα (Κιλά)",
                             min_value=0.0,
@@ -658,8 +682,8 @@ with tab_open:
                         )
 
                     # ΝΕΑ ΠΕΔΙΑ: Ζυγολόγιο Βιολογικού
-                    em5, em6 = st.columns(2)
-                    with em5:
+                    em6, em7 = st.columns(2)
+                    with em6:
                         e_sheep_bio_scale = st.number_input(
                             "Πρόβειο Βιολογικό Γάλα (Ζυγολόγιο)",
                             min_value=0.0,
@@ -668,7 +692,7 @@ with tab_open:
                             value=float(row.get("sheep_bio_scale") or 0),
                             key=f"sheep_bio_scale_{selected_id}",
                         )
-                    with em6:
+                    with em7:
                         e_goat_bio_scale = st.number_input(
                             "Γίδινο Βιολογικό Γάλα (Ζυγολόγιο)",
                             min_value=0.0,
@@ -738,6 +762,7 @@ with tab_open:
                                     driver=e_driver,
                                     sheep_conv_kg=e_sheep_conv_kg,
                                     goat_conv_kg=e_goat_conv_kg,
+                                    cow_conv_kg=e_cow_conv_kg,  # ΝΕΟ
                                     total_conv_kg_scale=e_total_conv_kg_scale,
                                     conv_da_refs=e_conv_da_refs,
                                     sheep_bio_kg=e_sheep_bio_kg,
@@ -774,6 +799,7 @@ with tab_open:
                                     factory_entry_at=entry_time,  # ΚΑΤΑΓΡΑΦΗ ΕΙΣΟΔΟΥ
                                     sheep_conv_kg=e_sheep_conv_kg,
                                     goat_conv_kg=e_goat_conv_kg,
+                                    cow_conv_kg=e_cow_conv_kg,  # ΝΕΟ
                                     total_conv_kg_scale=e_total_conv_kg_scale,
                                     conv_da_refs=e_conv_da_refs,
                                     sheep_bio_kg=e_sheep_bio_kg,
@@ -806,6 +832,7 @@ with tab_open:
                                     driver=e_driver,
                                     sheep_conv_kg=e_sheep_conv_kg,
                                     goat_conv_kg=e_goat_conv_kg,
+                                    cow_conv_kg=e_cow_conv_kg,  # ΝΕΟ
                                     total_conv_kg_scale=e_total_conv_kg_scale,
                                     conv_da_refs=e_conv_da_refs,
                                     sheep_bio_kg=e_sheep_bio_kg,
@@ -901,7 +928,7 @@ with tab_all:
         show_cols = [
             "id", "dt", "started_at_dt", "closed_at_dt", "route", "client", "plate",
             "start_km", "end_km", "total_km", "driver",
-            "sheep_conv_kg", "goat_conv_kg", "total_conv_kg_scale", "conv_da_refs",
+            "sheep_conv_kg", "goat_conv_kg", "cow_conv_kg", "total_conv_kg_scale", "conv_da_refs",
             "sheep_bio_kg", "goat_bio_kg", "sheep_bio_scale", "goat_bio_scale",
             "bio_da_refs", "total_all_da", "total_all_scale", "diff_da_vs_scale",
             "status",
@@ -947,6 +974,3 @@ with tab_all:
                             st.exception(e)
     else:
         st.info("Δεν υπάρχουν ακόμη εγγραφές.")
-
-
-
