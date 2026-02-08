@@ -397,7 +397,7 @@ with tab_new:
         )
 
         # Διαφορά = ΔΑ - Ζυγολόγιο
-        diff_da_vs_scale = total_all_da - total_all_scale
+        diff_da_vs_scale = total_all_scale -  total_all_da
         st.number_input(
             "Διαφορά (ΔΑ - Ζυγολόγιο)",
             value=float(diff_da_vs_scale),
@@ -974,3 +974,4 @@ with tab_all:
                             st.exception(e)
     else:
         st.info("Δεν υπάρχουν ακόμη εγγραφές.")
+
