@@ -73,7 +73,7 @@ def to_float_or_none(x):
 # ---------- CRUD ΣΥΝΑΡΤΗΣΕΙΣ ----------
 def insert_record(
     route,
-    client,  # ΝΕΟΣ ΠΑΡΑΜΕΤΡΟΣ
+    client,
     vehicle,
     start_km,
     end_km,
@@ -83,45 +83,43 @@ def insert_record(
     # Milk fields
     sheep_conv_kg,
     goat_conv_kg,
-    cow_conv_kg,  # ΝΕΟ - Αγελαδινό Συμβατικό
+    cow_conv_kg,
     total_conv_kg_scale,
     conv_da_refs,
     sheep_bio_kg,
     goat_bio_kg,
-    sheep_bio_scale,  # ΝΕΟ
-    goat_bio_scale,   # ΝΕΟ
+    sheep_bio_scale,
+    goat_bio_scale,
     bio_da_refs,
     total_all_da,
     total_all_scale,
     diff_da_vs_scale,
-    factory_entry_at=None,  # ΝΕΟ ΠΕΔΙΟ (στο τέλος με default)
+    factory_entry_at=None,
+    unloading_end_at=None,  # ΝΕΟ ΠΕΔΙΟ
 ):
-    """
-    Δημιουργεί νέο δρομολόγιο (ανοιχτό).
-    started_at = datetime (ημερομηνία & ώρα έναρξης)
-    """
     data = {
         "route": route if route else None,
-        "client": client if client else None,  # ΝΕΟΣ
+        "client": client if client else None,
         "plate": vehicle,
         "start_km": to_float_or_none(start_km),
-        "end_km": to_float_or_none(end_km),  # συνήθως None στην αρχή
-        "total_km": to_float_or_none(total_km),  # συνήθως None στην αρχή
+        "end_km": to_float_or_none(end_km),
+        "total_km": to_float_or_none(total_km),
         "driver": driver,
-        "dt": started_at.date().isoformat(),  # για φίλτρα ημερομηνίας
-        "started_at": started_at.isoformat(),  # full datetime έναρξης
-        "factory_entry_at": factory_entry_at.isoformat() if factory_entry_at else None,  # ΝΕΟ
+        "dt": started_at.date().isoformat(),
+        "started_at": started_at.isoformat(),
+        "factory_entry_at": factory_entry_at.isoformat() if factory_entry_at else None,
+        "unloading_end_at": unloading_end_at.isoformat() if unloading_end_at else None,  # ΝΕΟ
         "is_closed": False,
         # milk fields
         "sheep_conv_kg": to_float_or_none(sheep_conv_kg),
         "goat_conv_kg": to_float_or_none(goat_conv_kg),
-        "cow_conv_kg": to_float_or_none(cow_conv_kg),  # ΝΕΟ
+        "cow_conv_kg": to_float_or_none(cow_conv_kg),
         "total_conv_kg_scale": to_float_or_none(total_conv_kg_scale),
         "conv_da_refs": conv_da_refs if conv_da_refs else None,
         "sheep_bio_kg": to_float_or_none(sheep_bio_kg),
         "goat_bio_kg": to_float_or_none(goat_bio_kg),
-        "sheep_bio_scale": to_float_or_none(sheep_bio_scale),  # ΝΕΟ
-        "goat_bio_scale": to_float_or_none(goat_bio_scale),    # ΝΕΟ
+        "sheep_bio_scale": to_float_or_none(sheep_bio_scale),
+        "goat_bio_scale": to_float_or_none(goat_bio_scale),
         "bio_da_refs": bio_da_refs if bio_da_refs else None,
         "total_all_da": to_float_or_none(total_all_da),
         "total_all_scale": to_float_or_none(total_all_scale),
@@ -142,9 +140,6 @@ def get_all_records() -> pd.DataFrame:
     return pd.DataFrame(data)
 
 def get_open_records() -> pd.DataFrame:
-    """
-    Επιστρέφει μόνο τα δρομολόγια που δεν έχουν κλείσει (is_closed = false).
-    """
     res = (
         supabase.table("routes")
         .select("*")
@@ -160,23 +155,24 @@ def get_open_records() -> pd.DataFrame:
 def update_record(
     record_id,
     route=None,
-    client=None,  # ΝΕΟΣ
+    client=None,
     vehicle=None,
     start_km=None,
     end_km=None,
     total_km=None,
     driver=None,
-    factory_entry_at=None,  # ΝΕΟ
+    factory_entry_at=None,
+    unloading_end_at=None,  # ΝΕΟ
     # milk fields
     sheep_conv_kg=None,
     goat_conv_kg=None,
-    cow_conv_kg=None,  # ΝΕΟ - Αγελαδινό Συμβατικό
+    cow_conv_kg=None,
     total_conv_kg_scale=None,
     conv_da_refs=None,
     sheep_bio_kg=None,
     goat_bio_kg=None,
-    sheep_bio_scale=None,  # ΝΕΟ
-    goat_bio_scale=None,   # ΝΕΟ
+    sheep_bio_scale=None,
+    goat_bio_scale=None,
     bio_da_refs=None,
     total_all_da=None,
     total_all_scale=None,
@@ -185,7 +181,7 @@ def update_record(
     update_data = {}
     if route is not None:
         update_data["route"] = route
-    if client is not None:  # ΝΕΟΣ
+    if client is not None:
         update_data["client"] = client
     if vehicle is not None:
         update_data["plate"] = vehicle
@@ -197,14 +193,16 @@ def update_record(
         update_data["total_km"] = to_float_or_none(total_km)
     if driver is not None:
         update_data["driver"] = driver
-    if factory_entry_at is not None:  # ΝΕΟ
+    if factory_entry_at is not None:
         update_data["factory_entry_at"] = factory_entry_at.isoformat() if factory_entry_at else None
+    if unloading_end_at is not None:  # ΝΕΟ
+        update_data["unloading_end_at"] = unloading_end_at.isoformat() if unloading_end_at else None
     # milk fields
     if sheep_conv_kg is not None:
         update_data["sheep_conv_kg"] = to_float_or_none(sheep_conv_kg)
     if goat_conv_kg is not None:
         update_data["goat_conv_kg"] = to_float_or_none(goat_conv_kg)
-    if cow_conv_kg is not None:  # ΝΕΟ
+    if cow_conv_kg is not None:
         update_data["cow_conv_kg"] = to_float_or_none(cow_conv_kg)
     if total_conv_kg_scale is not None:
         update_data["total_conv_kg_scale"] = to_float_or_none(total_conv_kg_scale)
@@ -214,9 +212,9 @@ def update_record(
         update_data["sheep_bio_kg"] = to_float_or_none(sheep_bio_kg)
     if goat_bio_kg is not None:
         update_data["goat_bio_kg"] = to_float_or_none(goat_bio_kg)
-    if sheep_bio_scale is not None:  # ΝΕΟ
+    if sheep_bio_scale is not None:
         update_data["sheep_bio_scale"] = to_float_or_none(sheep_bio_scale)
-    if goat_bio_scale is not None:  # ΝΕΟ
+    if goat_bio_scale is not None:
         update_data["goat_bio_scale"] = to_float_or_none(goat_bio_scale)
     if bio_da_refs is not None:
         update_data["bio_da_refs"] = bio_da_refs
@@ -232,12 +230,8 @@ def update_record(
     supabase.table("routes").update(update_data).eq("id", record_id).execute()
 
 def close_record(record_id):
-    """
-    Θέτει is_closed = true και κλειδώνει το δρομολόγιο.
-    Χρησιμοποιούμε closed_at σαν ημερομηνία/ώρα λήξης.
-    """
     athens_tz = pytz.timezone('Europe/Athens')
-    now = datetime.now(athens_tz).replace(tzinfo=None).isoformat()  # naive datetime με ελληνική ώρα
+    now = datetime.now(athens_tz).replace(tzinfo=None).isoformat()
     supabase.table("routes").update(
         {
             "is_closed": True,
@@ -266,182 +260,86 @@ with tab_new:
     st.info("Η ημερομηνία & ώρα έναρξης θα καταγραφεί αυτόματα με την αποθήκευση.")
 
     with st.form("route_form", clear_on_submit=True):
-        # 1) Δρομολόγιο (dropdown)
         route = st.selectbox("Δρομολόγιο", ROUTE_OPTIONS)
-        
-        # 2) ΝΕΟΣ: Πελάτης (dropdown)
         client = st.selectbox("Πελάτης", CLIENT_OPTIONS)
-        
-        # 3) Όχημα (dropdown)
         vehicle = st.selectbox("Όχημα", VEHICLE_OPTIONS)
 
-        # 4) Χιλιομετρική ένδειξη έναρξης
         start_km = st.number_input(
             "Χιλιομετρική ένδειξη ΕΝΑΡΞΗΣ",
-            min_value=0.0,
-            step=1.0,
-            format="%.0f"
+            min_value=0.0, step=1.0, format="%.0f"
         )
 
-        # 5) Χιλιομετρική ένδειξη λήξης (προαιρετικά σε αυτή τη φάση)
         end_km = st.number_input(
             "Χιλιομετρική ένδειξη ΛΗΞΗΣ (προαιρετικά, μπορεί να συμπληρωθεί αργότερα)",
-            min_value=0.0,
-            step=1.0,
-            format="%.0f"
+            min_value=0.0, step=1.0, format="%.0f"
         )
 
-        # 6) Συνολικά χιλιόμετρα (End - Start, μόνο αν End > Start)
         if end_km > 0 and end_km >= start_km:
             total_km = end_km - start_km
         else:
             total_km = 0
         st.number_input(
             "Συνολικά διανυθέντα χιλιόμετρα (υπολογίζονται αυτόματα)",
-            value=float(total_km),
-            disabled=True
+            value=float(total_km), disabled=True
         )
 
-        # Ονοματεπώνυμο οδηγού (dropdown)
         driver = st.selectbox("Ονοματεπώνυμο οδηγού", DRIVER_OPTIONS)
 
         st.markdown("---")
         st.subheader("🥛 Συλλογή Γάλακτος")
 
-        # ΝΕΑ ΔΙΑΤΑΞΗ: 3 στήλες για τα 3 είδη συμβατικού γάλακτος
         col_m1, col_m2, col_m3 = st.columns(3)
         with col_m1:
-            sheep_conv_kg = st.number_input(
-                "Πρόβειο Συμβατικό Γάλα (κιλά)",
-                min_value=0.0,
-                step=1.0,
-                format="%.2f",
-            )
+            sheep_conv_kg = st.number_input("Πρόβειο Συμβατικό Γάλα (κιλά)", min_value=0.0, step=1.0, format="%.2f")
         with col_m2:
-            goat_conv_kg = st.number_input(
-                "Γίδινο Συμβατικό Γάλα (κιλά)",
-                min_value=0.0,
-                step=1.0,
-                format="%.2f",
-            )
+            goat_conv_kg = st.number_input("Γίδινο Συμβατικό Γάλα (κιλά)", min_value=0.0, step=1.0, format="%.2f")
         with col_m3:
-            cow_conv_kg = st.number_input(
-                "Αγελαδινό Συμβατικό Γάλα (κιλά)",
-                min_value=0.0,
-                step=1.0,
-                format="%.2f",
-            )
+            cow_conv_kg = st.number_input("Αγελαδινό Συμβατικό Γάλα (κιλά)", min_value=0.0, step=1.0, format="%.2f")
 
-        total_conv_kg_scale = st.number_input(
-            "Σύνολο Συμβατικό Γάλα (Ζυγολόγιο)",
-            min_value=0.0,
-            step=1.0,
-            format="%.2f",
-        )
-
-        conv_da_refs = st.text_area(
-            "Σχετικά Δελτία Αποστολής (Συμβατικό)",
-            placeholder="π.χ. ΔΑ 123, ΔΑ 124..."
-        )
+        total_conv_kg_scale = st.number_input("Σύνολο Συμβατικό Γάλα (Ζυγολόγιο)", min_value=0.0, step=1.0, format="%.2f")
+        conv_da_refs = st.text_area("Σχετικά Δελτία Αποστολής (Συμβατικό)", placeholder="π.χ. ΔΑ 123, ΔΑ 124...")
 
         col_m4, col_m5 = st.columns(2)
         with col_m4:
-            sheep_bio_kg = st.number_input(
-                "Πρόβειο Βιολογικό Γάλα (Κιλά)",
-                min_value=0.0,
-                step=1.0,
-                format="%.2f",
-            )
+            sheep_bio_kg = st.number_input("Πρόβειο Βιολογικό Γάλα (Κιλά)", min_value=0.0, step=1.0, format="%.2f")
         with col_m5:
-            goat_bio_kg = st.number_input(
-                "Γίδινο Βιολογικό Γάλα (Κιλά)",
-                min_value=0.0,
-                step=1.0,
-                format="%.2f",
-            )
+            goat_bio_kg = st.number_input("Γίδινο Βιολογικό Γάλα (Κιλά)", min_value=0.0, step=1.0, format="%.2f")
 
-        # ΝΕΑ ΠΕΔΙΑ: Ζυγολόγιο Βιολογικού
         col_m6, col_m7 = st.columns(2)
         with col_m6:
-            sheep_bio_scale = st.number_input(
-                "Πρόβειο Βιολογικό Γάλα (Ζυγολόγιο)",
-                min_value=0.0,
-                step=1.0,
-                format="%.2f",
-            )
+            sheep_bio_scale = st.number_input("Πρόβειο Βιολογικό Γάλα (Ζυγολόγιο)", min_value=0.0, step=1.0, format="%.2f")
         with col_m7:
-            goat_bio_scale = st.number_input(
-                "Γίδινο Βιολογικό Γάλα (Ζυγολόγιο)",
-                min_value=0.0,
-                step=1.0,
-                format="%.2f",
-            )
+            goat_bio_scale = st.number_input("Γίδινο Βιολογικό Γάλα (Ζυγολόγιο)", min_value=0.0, step=1.0, format="%.2f")
 
-        bio_da_refs = st.text_area(
-            "Σχετικά Δελτία Αποστολής (Βιολογικό)",
-            placeholder="π.χ. ΔΑ ΒΙΟ 10, ΔΑ ΒΙΟ 11..."
-        )
+        bio_da_refs = st.text_area("Σχετικά Δελτία Αποστολής (Βιολογικό)", placeholder="π.χ. ΔΑ ΒΙΟ 10, ΔΑ ΒΙΟ 11...")
+        total_all_da = st.number_input("Σύνολο Συμβατικό + Βιολογικό (ΔΑ)", min_value=0.0, step=1.0, format="%.2f")
+        total_all_scale = st.number_input("Σύνολο Συμβατικό + Βιολογικό (Ζυγολόγιο)", min_value=0.0, step=1.0, format="%.2f")
 
-        total_all_da = st.number_input(
-            "Σύνολο Συμβατικό + Βιολογικό (ΔΑ)",
-            min_value=0.0,
-            step=1.0,
-            format="%.2f",
-        )
-
-        total_all_scale = st.number_input(
-            "Σύνολο Συμβατικό + Βιολογικό (Ζυγολόγιο)",
-            min_value=0.0,
-            step=1.0,
-            format="%.2f",
-        )
-
-        # Διαφορά = ΔΑ - Ζυγολόγιο
-        diff_da_vs_scale = total_all_scale -  total_all_da
-        st.number_input(
-            "Διαφορά (ΔΑ - Ζυγολόγιο)",
-            value=float(diff_da_vs_scale),
-            disabled=True,
-        )
+        diff_da_vs_scale = total_all_scale - total_all_da
+        st.number_input("Διαφορά (ΔΑ - Ζυγολόγιο)", value=float(diff_da_vs_scale), disabled=True)
 
         submitted = st.form_submit_button("✅ Έναρξη / Αποθήκευση")
 
         if submitted:
-            # Αν δεν έχουμε end_km ακόμη, τα αφήνουμε None
             end_km_db = end_km if end_km > 0 else None
             total_km_db = total_km if end_km_db is not None else None
-            
-            # Ελληνική ώρα (Athens timezone) - naive datetime για αποθήκευση
+
             athens_tz = pytz.timezone('Europe/Athens')
-            started_at = datetime.now(athens_tz).replace(tzinfo=None)  # αφαιρούμε timezone για αποθήκευση
+            started_at = datetime.now(athens_tz).replace(tzinfo=None)
 
             try:
                 insert_record(
-                    route=route,
-                    client=client,  # ΝΕΟΣ
-                    vehicle=vehicle,
-                    start_km=start_km,
-                    end_km=end_km_db,
-                    total_km=total_km_db,
-                    driver=driver,
-                    started_at=started_at,
-                    sheep_conv_kg=sheep_conv_kg,
-                    goat_conv_kg=goat_conv_kg,
-                    cow_conv_kg=cow_conv_kg,  # ΝΕΟ
-                    total_conv_kg_scale=total_conv_kg_scale,
-                    conv_da_refs=conv_da_refs,
-                    sheep_bio_kg=sheep_bio_kg,
-                    goat_bio_kg=goat_bio_kg,
-                    sheep_bio_scale=sheep_bio_scale,  # ΝΕΟ
-                    goat_bio_scale=goat_bio_scale,    # ΝΕΟ
-                    bio_da_refs=bio_da_refs,
-                    total_all_da=total_all_da,
-                    total_all_scale=total_all_scale,
-                    diff_da_vs_scale=diff_da_vs_scale,
+                    route=route, client=client, vehicle=vehicle,
+                    start_km=start_km, end_km=end_km_db, total_km=total_km_db,
+                    driver=driver, started_at=started_at,
+                    sheep_conv_kg=sheep_conv_kg, goat_conv_kg=goat_conv_kg, cow_conv_kg=cow_conv_kg,
+                    total_conv_kg_scale=total_conv_kg_scale, conv_da_refs=conv_da_refs,
+                    sheep_bio_kg=sheep_bio_kg, goat_bio_kg=goat_bio_kg,
+                    sheep_bio_scale=sheep_bio_scale, goat_bio_scale=goat_bio_scale,
+                    bio_da_refs=bio_da_refs, total_all_da=total_all_da,
+                    total_all_scale=total_all_scale, diff_da_vs_scale=diff_da_vs_scale,
                 )
-                st.success(
-                    f"Δρομολόγιο ξεκίνησε στις {started_at.strftime('%d/%m/%Y %H:%M:%S')} ✅"
-                )
+                st.success(f"Δρομολόγιο ξεκίνησε στις {started_at.strftime('%d/%m/%Y %H:%M:%S')} ✅")
             except Exception as e:
                 st.error("Σφάλμα κατά την αποθήκευση στην Supabase.")
                 st.exception(e)
@@ -460,17 +358,14 @@ with tab_open:
         open_df = pd.DataFrame()
 
     if open_df is not None and not open_df.empty:
-        # Μετατροπή dt σε date αν υπάρχει
         if "dt" in open_df.columns:
             open_df["dt"] = pd.to_datetime(open_df["dt"]).dt.date
 
-        # Αν έχουμε started_at, κρατάμε και τις ώρες (ήδη σε ελληνική ώρα)
         if "started_at" in open_df.columns:
             open_df["started_at_dt"] = pd.to_datetime(open_df["started_at"], errors="coerce")
         else:
             open_df["started_at_dt"] = pd.NaT
 
-        # Φίλτρα με μοναδικά keys
         colf1, colf2, colf3 = st.columns(3)
         with colf1:
             plate_filter = st.multiselect(
@@ -521,7 +416,6 @@ with tab_open:
         show_cols = [c for c in show_cols if c in filtered_open.columns]
         st.dataframe(filtered_open[show_cols], use_container_width=True)
 
-        # Επιλογή δρομολογίου για επεξεργασία
         st.markdown("### ✏️ Επιλογή δρομολογίου για συμπλήρωση / λήξη")
         if not filtered_open.empty:
             id_labels = []
@@ -539,7 +433,6 @@ with tab_open:
                 index=0,
             )
 
-            # Βρίσκουμε το αντίστοιχο ID
             try:
                 selected_id = int(selected_label.split(" ")[1])
             except ValueError:
@@ -553,15 +446,13 @@ with tab_open:
                     ecol1, ecol2 = st.columns(2)
                     with ecol1:
                         e_route = st.selectbox(
-                            "Δρομολόγιο",
-                            ROUTE_OPTIONS,
+                            "Δρομολόγιο", ROUTE_OPTIONS,
                             index=ROUTE_OPTIONS.index(row["route"]) if row.get("route") in ROUTE_OPTIONS else 0,
                             key=f"route_{selected_id}",
                         )
                     with ecol2:
                         e_client = st.selectbox(
-                            "Πελάτης",
-                            CLIENT_OPTIONS,
+                            "Πελάτης", CLIENT_OPTIONS,
                             index=CLIENT_OPTIONS.index(row.get("client", "")) if row.get("client") in CLIENT_OPTIONS else 0,
                             key=f"client_{selected_id}",
                         )
@@ -569,15 +460,13 @@ with tab_open:
                     ecol3, ecol4 = st.columns(2)
                     with ecol3:
                         e_vehicle = st.selectbox(
-                            "Όχημα",
-                            VEHICLE_OPTIONS,
+                            "Όχημα", VEHICLE_OPTIONS,
                             index=VEHICLE_OPTIONS.index(row["plate"]) if row.get("plate") in VEHICLE_OPTIONS else 0,
                             key=f"veh_{selected_id}",
                         )
                     with ecol4:
                         e_driver = st.selectbox(
-                            "Ονοματεπώνυμο οδηγού",
-                            DRIVER_OPTIONS,
+                            "Ονοματεπώνυμο οδηγού", DRIVER_OPTIONS,
                             index=DRIVER_OPTIONS.index(row["driver"]) if row.get("driver") in DRIVER_OPTIONS else 0,
                             key=f"driver_{selected_id}",
                         )
@@ -586,18 +475,14 @@ with tab_open:
                     with ecol5:
                         e_start_km = st.number_input(
                             "Χιλιομετρική ένδειξη ΕΝΑΡΞΗΣ",
-                            min_value=0.0,
-                            step=1.0,
-                            format="%.0f",
+                            min_value=0.0, step=1.0, format="%.0f",
                             value=float(row.get("start_km") or 0),
                             key=f"start_{selected_id}",
                         )
                     with ecol6:
                         e_end_km = st.number_input(
                             "Χιλιομετρική ένδειξη ΛΗΞΗΣ",
-                            min_value=0.0,
-                            step=1.0,
-                            format="%.0f",
+                            min_value=0.0, step=1.0, format="%.0f",
                             value=float(row.get("end_km") or 0),
                             key=f"end_{selected_id}",
                         )
@@ -608,172 +493,127 @@ with tab_open:
                         e_total_km = 0
                     st.number_input(
                         "Συνολικά διανυθέντα χιλιόμετρα (υπολογίζονται αυτόματα)",
-                        value=float(e_total_km),
-                        disabled=True,
+                        value=float(e_total_km), disabled=True,
                         key=f"total_{selected_id}",
                     )
 
                     st.markdown("---")
                     st.subheader("🥛 Συλλογή Γάλακτος")
 
-                    # ΝΕΑ ΔΙΑΤΑΞΗ: 3 στήλες για τα 3 είδη συμβατικού γάλακτος
                     em1, em2, em3 = st.columns(3)
                     with em1:
                         e_sheep_conv_kg = st.number_input(
-                            "Πρόβειο Συμβατικό Γάλα (κιλά)",
-                            min_value=0.0,
-                            step=1.0,
-                            format="%.2f",
-                            value=float(row.get("sheep_conv_kg") or 0),
-                            key=f"sheep_conv_{selected_id}",
+                            "Πρόβειο Συμβατικό Γάλα (κιλά)", min_value=0.0, step=1.0, format="%.2f",
+                            value=float(row.get("sheep_conv_kg") or 0), key=f"sheep_conv_{selected_id}",
                         )
                     with em2:
                         e_goat_conv_kg = st.number_input(
-                            "Γίδινο Συμβατικό Γάλα (κιλά)",
-                            min_value=0.0,
-                            step=1.0,
-                            format="%.2f",
-                            value=float(row.get("goat_conv_kg") or 0),
-                            key=f"goat_conv_{selected_id}",
+                            "Γίδινο Συμβατικό Γάλα (κιλά)", min_value=0.0, step=1.0, format="%.2f",
+                            value=float(row.get("goat_conv_kg") or 0), key=f"goat_conv_{selected_id}",
                         )
                     with em3:
                         e_cow_conv_kg = st.number_input(
-                            "Αγελαδινό Συμβατικό Γάλα (κιλά)",
-                            min_value=0.0,
-                            step=1.0,
-                            format="%.2f",
-                            value=float(row.get("cow_conv_kg") or 0),
-                            key=f"cow_conv_{selected_id}",
+                            "Αγελαδινό Συμβατικό Γάλα (κιλά)", min_value=0.0, step=1.0, format="%.2f",
+                            value=float(row.get("cow_conv_kg") or 0), key=f"cow_conv_{selected_id}",
                         )
 
                     e_total_conv_kg_scale = st.number_input(
-                        "Σύνολο Συμβατικό Γάλα (Ζυγολόγιο)",
-                        min_value=0.0,
-                        step=1.0,
-                        format="%.2f",
-                        value=float(row.get("total_conv_kg_scale") or 0),
-                        key=f"total_conv_scale_{selected_id}",
+                        "Σύνολο Συμβατικό Γάλα (Ζυγολόγιο)", min_value=0.0, step=1.0, format="%.2f",
+                        value=float(row.get("total_conv_kg_scale") or 0), key=f"total_conv_scale_{selected_id}",
                     )
-
                     e_conv_da_refs = st.text_area(
                         "Σχετικά Δελτία Αποστολής (Συμβατικό)",
-                        value=row.get("conv_da_refs", "") or "",
-                        key=f"conv_da_refs_{selected_id}",
+                        value=row.get("conv_da_refs", "") or "", key=f"conv_da_refs_{selected_id}",
                     )
 
                     em4, em5 = st.columns(2)
                     with em4:
                         e_sheep_bio_kg = st.number_input(
-                            "Πρόβειο Βιολογικό Γάλα (Κιλά)",
-                            min_value=0.0,
-                            step=1.0,
-                            format="%.2f",
-                            value=float(row.get("sheep_bio_kg") or 0),
-                            key=f"sheep_bio_{selected_id}",
+                            "Πρόβειο Βιολογικό Γάλα (Κιλά)", min_value=0.0, step=1.0, format="%.2f",
+                            value=float(row.get("sheep_bio_kg") or 0), key=f"sheep_bio_{selected_id}",
                         )
                     with em5:
                         e_goat_bio_kg = st.number_input(
-                            "Γίδινο Βιολογικό Γάλα (Κιλά)",
-                            min_value=0.0,
-                            step=1.0,
-                            format="%.2f",
-                            value=float(row.get("goat_bio_kg") or 0),
-                            key=f"goat_bio_{selected_id}",
+                            "Γίδινο Βιολογικό Γάλα (Κιλά)", min_value=0.0, step=1.0, format="%.2f",
+                            value=float(row.get("goat_bio_kg") or 0), key=f"goat_bio_{selected_id}",
                         )
 
-                    # ΝΕΑ ΠΕΔΙΑ: Ζυγολόγιο Βιολογικού
                     em6, em7 = st.columns(2)
                     with em6:
                         e_sheep_bio_scale = st.number_input(
-                            "Πρόβειο Βιολογικό Γάλα (Ζυγολόγιο)",
-                            min_value=0.0,
-                            step=1.0,
-                            format="%.2f",
-                            value=float(row.get("sheep_bio_scale") or 0),
-                            key=f"sheep_bio_scale_{selected_id}",
+                            "Πρόβειο Βιολογικό Γάλα (Ζυγολόγιο)", min_value=0.0, step=1.0, format="%.2f",
+                            value=float(row.get("sheep_bio_scale") or 0), key=f"sheep_bio_scale_{selected_id}",
                         )
                     with em7:
                         e_goat_bio_scale = st.number_input(
-                            "Γίδινο Βιολογικό Γάλα (Ζυγολόγιο)",
-                            min_value=0.0,
-                            step=1.0,
-                            format="%.2f",
-                            value=float(row.get("goat_bio_scale") or 0),
-                            key=f"goat_bio_scale_{selected_id}",
+                            "Γίδινο Βιολογικό Γάλα (Ζυγολόγιο)", min_value=0.0, step=1.0, format="%.2f",
+                            value=float(row.get("goat_bio_scale") or 0), key=f"goat_bio_scale_{selected_id}",
                         )
 
                     e_bio_da_refs = st.text_area(
                         "Σχετικά Δελτία Αποστολής (Βιολογικό)",
-                        value=row.get("bio_da_refs", "") or "",
-                        key=f"bio_da_refs_{selected_id}",
+                        value=row.get("bio_da_refs", "") or "", key=f"bio_da_refs_{selected_id}",
                     )
 
                     e_total_all_da = st.number_input(
-                        "Σύνολο Συμβατικό + Βιολογικό (ΔΑ)",
-                        min_value=0.0,
-                        step=1.0,
-                        format="%.2f",
-                        value=float(row.get("total_all_da") or 0),
-                        key=f"total_all_da_{selected_id}",
+                        "Σύνολο Συμβατικό + Βιολογικό (ΔΑ)", min_value=0.0, step=1.0, format="%.2f",
+                        value=float(row.get("total_all_da") or 0), key=f"total_all_da_{selected_id}",
                     )
-
                     e_total_all_scale = st.number_input(
-                        "Σύνολο Συμβατικό + Βιολογικό (Ζυγολόγιο)",
-                        min_value=0.0,
-                        step=1.0,
-                        format="%.2f",
-                        value=float(row.get("total_all_scale") or 0),
-                        key=f"total_all_scale_{selected_id}",
+                        "Σύνολο Συμβατικό + Βιολογικό (Ζυγολόγιο)", min_value=0.0, step=1.0, format="%.2f",
+                        value=float(row.get("total_all_scale") or 0), key=f"total_all_scale_{selected_id}",
                     )
 
                     e_diff_da_vs_scale = e_total_all_da - e_total_all_scale
                     st.number_input(
                         "Διαφορά (ΔΑ - Ζυγολόγιο)",
-                        value=float(e_diff_da_vs_scale),
-                        disabled=True,
+                        value=float(e_diff_da_vs_scale), disabled=True,
                         key=f"diff_{selected_id}",
                     )
 
-                    col_btn1, col_btn2, col_btn3 = st.columns(3)
+                    # ── Κουμπιά ──────────────────────────────────────────
+                    col_btn1, col_btn2 = st.columns(2)
                     with col_btn1:
                         save_changes = st.form_submit_button("💾 Αποθήκευση αλλαγών")
                     with col_btn2:
-                        factory_entry = st.form_submit_button("🏭 Είσοδος Εργοστάσιο Παραλαβής")
-                    with col_btn3:
                         close_trip = st.form_submit_button("✅ Λήξη & Κλείδωμα")
 
+                    st.markdown("---")
+                    col_btn3, col_btn4 = st.columns(2)
+                    with col_btn3:
+                        factory_entry = st.form_submit_button("🏭 Είσοδος Εργοστάσιο Παραλαβής")
+                    with col_btn4:
+                        unloading_end = st.form_submit_button("🔚 Τέλος Εκφόρτωσης")  # ΝΕΟ ΚΟΥΜΠΙ
+
+                    # ── Βοηθητική συνάρτηση validation ──────────────────
                     def validate_km():
                         if e_end_km > 0 and e_end_km < e_start_km:
                             st.error("Η χιλιομετρική ένδειξη λήξης δεν μπορεί να είναι μικρότερη από την έναρξη.")
                             return False
                         return True
 
+                    # ── Κοινά ορίσματα για update_record ─────────────────
+                    def common_update_kwargs():
+                        return dict(
+                            record_id=selected_id,
+                            route=e_route, client=e_client, vehicle=e_vehicle,
+                            start_km=e_start_km,
+                            end_km=e_end_km if e_end_km > 0 else None,
+                            total_km=e_total_km if e_end_km > 0 else None,
+                            driver=e_driver,
+                            sheep_conv_kg=e_sheep_conv_kg, goat_conv_kg=e_goat_conv_kg,
+                            cow_conv_kg=e_cow_conv_kg, total_conv_kg_scale=e_total_conv_kg_scale,
+                            conv_da_refs=e_conv_da_refs, sheep_bio_kg=e_sheep_bio_kg,
+                            goat_bio_kg=e_goat_bio_kg, sheep_bio_scale=e_sheep_bio_scale,
+                            goat_bio_scale=e_goat_bio_scale, bio_da_refs=e_bio_da_refs,
+                            total_all_da=e_total_all_da, total_all_scale=e_total_all_scale,
+                            diff_da_vs_scale=e_diff_da_vs_scale,
+                        )
+
                     if save_changes:
                         if validate_km():
                             try:
-                                update_record(
-                                    record_id=selected_id,
-                                    route=e_route,
-                                    client=e_client,  # ΝΕΟΣ
-                                    vehicle=e_vehicle,
-                                    start_km=e_start_km,
-                                    end_km=e_end_km if e_end_km > 0 else None,
-                                    total_km=e_total_km if e_end_km > 0 else None,
-                                    driver=e_driver,
-                                    sheep_conv_kg=e_sheep_conv_kg,
-                                    goat_conv_kg=e_goat_conv_kg,
-                                    cow_conv_kg=e_cow_conv_kg,  # ΝΕΟ
-                                    total_conv_kg_scale=e_total_conv_kg_scale,
-                                    conv_da_refs=e_conv_da_refs,
-                                    sheep_bio_kg=e_sheep_bio_kg,
-                                    goat_bio_kg=e_goat_bio_kg,
-                                    sheep_bio_scale=e_sheep_bio_scale,  # ΝΕΟ
-                                    goat_bio_scale=e_goat_bio_scale,    # ΝΕΟ
-                                    bio_da_refs=e_bio_da_refs,
-                                    total_all_da=e_total_all_da,
-                                    total_all_scale=e_total_all_scale,
-                                    diff_da_vs_scale=e_diff_da_vs_scale,
-                                )
+                                update_record(**common_update_kwargs())
                                 st.success("Οι αλλαγές αποθηκεύτηκαν ✅")
                                 st.rerun()
                             except Exception as e:
@@ -783,68 +623,32 @@ with tab_open:
                     if factory_entry:
                         if validate_km():
                             try:
-                                # Καταγραφή ώρας εισόδου στο εργοστάσιο
                                 athens_tz = pytz.timezone('Europe/Athens')
                                 entry_time = datetime.now(athens_tz).replace(tzinfo=None)
-                                
-                                update_record(
-                                    record_id=selected_id,
-                                    route=e_route,
-                                    client=e_client,
-                                    vehicle=e_vehicle,
-                                    start_km=e_start_km,
-                                    end_km=e_end_km if e_end_km > 0 else None,
-                                    total_km=e_total_km if e_end_km > 0 else None,
-                                    driver=e_driver,
-                                    factory_entry_at=entry_time,  # ΚΑΤΑΓΡΑΦΗ ΕΙΣΟΔΟΥ
-                                    sheep_conv_kg=e_sheep_conv_kg,
-                                    goat_conv_kg=e_goat_conv_kg,
-                                    cow_conv_kg=e_cow_conv_kg,  # ΝΕΟ
-                                    total_conv_kg_scale=e_total_conv_kg_scale,
-                                    conv_da_refs=e_conv_da_refs,
-                                    sheep_bio_kg=e_sheep_bio_kg,
-                                    goat_bio_kg=e_goat_bio_kg,
-                                    sheep_bio_scale=e_sheep_bio_scale,
-                                    goat_bio_scale=e_goat_bio_scale,
-                                    bio_da_refs=e_bio_da_refs,
-                                    total_all_da=e_total_all_da,
-                                    total_all_scale=e_total_all_scale,
-                                    diff_da_vs_scale=e_diff_da_vs_scale,
-                                )
+                                update_record(**common_update_kwargs(), factory_entry_at=entry_time)
                                 st.success(f"Είσοδος εργοστασίου καταγράφηκε: {entry_time.strftime('%d/%m/%Y %H:%M:%S')} ✅")
                                 st.rerun()
                             except Exception as e:
                                 st.error("Σφάλμα κατά την καταγραφή εισόδου.")
                                 st.exception(e)
 
+                    # ── ΝΕΟ: Τέλος Εκφόρτωσης ────────────────────────────
+                    if unloading_end:
+                        if validate_km():
+                            try:
+                                athens_tz = pytz.timezone('Europe/Athens')
+                                unloading_time = datetime.now(athens_tz).replace(tzinfo=None)
+                                update_record(**common_update_kwargs(), unloading_end_at=unloading_time)
+                                st.success(f"Τέλος εκφόρτωσης καταγράφηκε: {unloading_time.strftime('%d/%m/%Y %H:%M:%S')} ✅")
+                                st.rerun()
+                            except Exception as e:
+                                st.error("Σφάλμα κατά την καταγραφή τέλους εκφόρτωσης.")
+                                st.exception(e)
+
                     if close_trip:
                         if validate_km():
                             try:
-                                # Πρώτα σώζουμε τις τελευταίες τιμές
-                                update_record(
-                                    record_id=selected_id,
-                                    route=e_route,
-                                    client=e_client,  # ΝΕΟΣ
-                                    vehicle=e_vehicle,
-                                    start_km=e_start_km,
-                                    end_km=e_end_km if e_end_km > 0 else None,
-                                    total_km=e_total_km if e_end_km > 0 else None,
-                                    driver=e_driver,
-                                    sheep_conv_kg=e_sheep_conv_kg,
-                                    goat_conv_kg=e_goat_conv_kg,
-                                    cow_conv_kg=e_cow_conv_kg,  # ΝΕΟ
-                                    total_conv_kg_scale=e_total_conv_kg_scale,
-                                    conv_da_refs=e_conv_da_refs,
-                                    sheep_bio_kg=e_sheep_bio_kg,
-                                    goat_bio_kg=e_goat_bio_kg,
-                                    sheep_bio_scale=e_sheep_bio_scale,  # ΝΕΟ
-                                    goat_bio_scale=e_goat_bio_scale,    # ΝΕΟ
-                                    bio_da_refs=e_bio_da_refs,
-                                    total_all_da=e_total_all_da,
-                                    total_all_scale=e_total_all_scale,
-                                    diff_da_vs_scale=e_diff_da_vs_scale,
-                                )
-                                # Μετά κλειδώνουμε (βάζει και ώρα λήξης)
+                                update_record(**common_update_kwargs())
                                 close_record(selected_id)
                                 st.success("Το δρομολόγιο έκλεισε & κλειδώθηκε ✅")
                                 st.rerun()
@@ -931,12 +735,12 @@ with tab_all:
             "sheep_conv_kg", "goat_conv_kg", "cow_conv_kg", "total_conv_kg_scale", "conv_da_refs",
             "sheep_bio_kg", "goat_bio_kg", "sheep_bio_scale", "goat_bio_scale",
             "bio_da_refs", "total_all_da", "total_all_scale", "diff_da_vs_scale",
+            "factory_entry_at", "unloading_end_at",  # ΝΕΟ στις στήλες
             "status",
         ]
         show_cols = [c for c in show_cols if c in filtered_df.columns]
         st.dataframe(filtered_df[show_cols], use_container_width=True)
 
-        # Export σε Excel – όλα ως string για να μη σκάει
         if not filtered_df.empty:
             df_export = filtered_df.copy()
             df_export = df_export.astype(str)
@@ -951,7 +755,6 @@ with tab_all:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
-        # Διαγραφή εγγραφών
         st.markdown("### 🗑️ Διαγραφή εγγραφών (με βάση τα φιλτραρισμένα)")
         if not filtered_df.empty:
             for _, row in filtered_df.iterrows():
@@ -974,4 +777,3 @@ with tab_all:
                             st.exception(e)
     else:
         st.info("Δεν υπάρχουν ακόμη εγγραφές.")
-
