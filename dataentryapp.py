@@ -88,6 +88,8 @@ def insert_record(
     conv_da_refs,
     sheep_bio_kg,
     goat_bio_kg,
+
+    
     sheep_bio_scale,
     goat_bio_scale,
     bio_da_refs,
@@ -564,7 +566,7 @@ with tab_open:
                         value=float(row.get("total_all_scale") or 0), key=f"total_all_scale_{selected_id}",
                     )
 
-                    e_diff_da_vs_scale = e_total_all_da - e_total_all_scale
+                    e_diff_da_vs_scale =   e_total_all_scale - e_total_all_da
                     st.number_input(
                         "Διαφορά (ΔΑ - Ζυγολόγιο)",
                         value=float(e_diff_da_vs_scale), disabled=True,
@@ -777,3 +779,4 @@ with tab_all:
                             st.exception(e)
     else:
         st.info("Δεν υπάρχουν ακόμη εγγραφές.")
+
